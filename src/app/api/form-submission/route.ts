@@ -2,18 +2,18 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 
-// Configuración de S3 con valores fijos
-const AWS_REGION = 'sa-east-1';
-const BUCKET = 'multimedia-form-pdr';
-const AWS_ACCESS_KEY_ID = 'AKIA5DVBKYHWC7ARDZWW';
-const AWS_SECRET_ACCESS_KEY = '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';
-const BACKEND_API_URL = 'http://localhost:3003/api';
+// Configuración de S3 con variables de entorno
+const AWS_REGION = process.env.AWS_REGION || 'sa-east-1';
+const BUCKET = process.env.BUCKET || 'your-bucket-name';
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || 'YOUR_AWS_ACCESS_KEY_HERE';
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || 'YOUR_AWS_SECRET_HERE';
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/api';
 
-console.log('[CONFIG] Inicializando cliente S3 con credenciales fijas:');
+console.log('[CONFIG] Inicializando cliente S3 con credenciales de entorno:');
 console.log('[CONFIG] AWS_REGION:', AWS_REGION);
 console.log('[CONFIG] BUCKET:', BUCKET);
-console.log('[CONFIG] AWS_ACCESS_KEY_ID:', `${AWS_ACCESS_KEY_ID.substring(0, 5)}...`);
-console.log('[CONFIG] AWS_SECRET_ACCESS_KEY: Configurado (oculto)');
+console.log('[CONFIG] AWS_ACCESS_KEY_ID configurado:', !!process.env.AWS_ACCESS_KEY_ID);
+console.log('[CONFIG] AWS_SECRET_ACCESS_KEY configurado:', !!process.env.AWS_SECRET_ACCESS_KEY);
 console.log('[CONFIG] BACKEND_API_URL:', BACKEND_API_URL);
 
 const s3Client = new S3Client({

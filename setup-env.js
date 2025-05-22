@@ -4,9 +4,9 @@ const path = require('path');
 
 const envContent = `# AWS S3 Credentials
 AWS_REGION=sa-east-1
-BUCKET=multimedia-form-pdr
-AWS_ACCESS_KEY_ID=AKIA5DVBKYHWC7ARDZWW
-AWS_SECRET_ACCESS_KEY=RLHYJ+G3LZDkS3JFMdGJRoYjeSYOg15/mWcDU0+1
+BUCKET=your-bucket-name
+AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_HERE
+AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_HERE
 
 # API Endpoint
 NEXT_PUBLIC_API_URL=http://localhost:3003/api
