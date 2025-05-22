@@ -6,12 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { AlertCircle, CheckCircle, ArrowLeft, Info, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  enviarDatosAZapier,
-  prepararDatosParaZapier,
-  enviarDatosComoJsonAZapier,
-  comprimirArchivos,
-} from "@/lib/zapier-service"
 import UploadProgressBar from "@/components/UploadProgressBar"
 
 interface PasoConfirmacionProps {
@@ -20,21 +14,6 @@ interface PasoConfirmacionProps {
   onPrevious: () => void
   enviando: boolean
   error: string
-}
-
-interface RespuestaZapier {
-  success: boolean;
-  message: string;
-  request_id?: string;
-  inspectionId?: string;
-  storeInLocalStorage?: boolean;
-  inspectionData?: {
-    id: string;
-    titular: string;
-    placa: string;
-    email: string;
-    submissionDate: string;
-  };
 }
 
 export default function PasoConfirmacion({
@@ -62,6 +41,8 @@ export default function PasoConfirmacion({
     tiresPhotoUrl: datosFormulario.tiresPhotoUrl || '',
     videoFileUrl: datosFormulario.videoFileUrl || '',
   });
+
+  // Verificar que no haya ninguna referencia a Zapier ni Cloudinary.
 
   useEffect(() => {
     // Verificar si hay una URL de webhook configurada
@@ -159,64 +140,6 @@ export default function PasoConfirmacion({
       console.log(`Inspección ${id} guardada en localStorage`);
     } catch (error) {
       console.error("Error al guardar la inspección en localStorage:", error);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (enviando) return;
-
-    setEnviando(true);
-    setError(null);
-    setProgress(10);
-    setIsUploading(true);
-    setUploadingStage("Preparando arquivos");
-
-    try {
-      // Saltamos directamente al método alternativo, que suele ser más estable
-      setUsarMetodoAlternativo(true);
-      setProgress(30);
-      setUploadingStage("Comprimindo imagens");
-      
-      console.log("Usando método JSON para enviar dados");
-      setProgress(40);
-      
-      // Método alternativo: enviar como JSON
-      const resultado = await enviarDatosComoJsonAZapier(datosFormulario);
-      
-      // Como ahora la respuesta es inmediata, progresamos rápidamente
-      setProgress(80);
-      setUploadingStage("Processando resposta");
-
-      console.log("Resultado del envío:", resultado);
-      
-      // Guardar en localStorage si el servidor lo indica
-      if (resultado && 
-          typeof resultado === 'object' && 
-          resultado.storeInLocalStorage && 
-          resultado.inspectionData && 
-          resultado.inspectionId) {
-        guardarInspeccionEnLocalStorage(resultado.inspectionId, resultado.inspectionData);
-      }
-      
-      // Solo esperamos un breve momento para dar feedback
-      setTimeout(() => {
-        setProgress(100);
-        setSuccess(true);
-        setUploadingStage("Processo finalizado");
-        
-        // Esperar un momento antes de continuar
-        setTimeout(() => {
-          onSubmit();
-        }, 1000);
-      }, 500);
-    } catch (error: any) {
-      console.error("Error al enviar la inspección:", error);
-      setError(error.message || "Ocorreu um erro ao enviar a inspeção. Por favor, tente novamente.");
-      setProgress(0);
-      setIntentos(intentos + 1);
-      setIsUploading(false);
-      setEnviando(false);
-      setComprimiendo(false);
     }
   };
 
@@ -460,7 +383,6 @@ export default function PasoConfirmacion({
                       onError={(e) => {
                         const target = e.target as HTMLVideoElement;
                         target.onerror = null;
-                        // Reemplazar con un mensaje de error para video
                         target.style.display = "none";
                         const parent = target.parentElement;
                         if (parent) {
@@ -521,10 +443,10 @@ export default function PasoConfirmacion({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSubmit}
+                onClick={onSubmit}
                 className="text-xs"
               >
-                {enviando ? "Enviando..." : "Enviar Inspeção"}
+                {propEnviando ? "Enviando..." : "Enviar Inspeção"}
               </Button>
             </div>
           )}
@@ -547,7 +469,7 @@ export default function PasoConfirmacion({
               type="button"
               variant="outline"
               onClick={onPrevious}
-              disabled={enviando}
+              disabled={propEnviando}
               className="flex items-center gap-1"
             >
               <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
@@ -555,11 +477,11 @@ export default function PasoConfirmacion({
 
             <Button
               type="button"
-              onClick={handleSubmit}
-              disabled={enviando}
+              onClick={onSubmit}
+              disabled={propEnviando}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
-              {enviando ? (
+              {propEnviando ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Enviando...
                 </>
@@ -570,7 +492,7 @@ export default function PasoConfirmacion({
           </div>
           
           {/* Mensaje informativo y barra de progreso movidos debajo de los botones */}
-          {enviando && (
+          {propEnviando && (
             <div className="mt-8 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50">
               <div className="container mx-auto">
                 <div className="flex items-center justify-center mb-3">

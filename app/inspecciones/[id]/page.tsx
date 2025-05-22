@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ChevronLeft, AlertCircle, Info } from "lucide-react";
 import FullScreenImage from "@/components/FullScreenImage";
+import Link from 'next/link';
+import Image from 'next/image';
+import VideoPlayer from '@/app/components/VideoPlayer';
 
 export default function InspeccionDetalle() {
   const router = useRouter();
@@ -321,33 +324,10 @@ export default function InspeccionDetalle() {
                     <h4 className="font-medium">Video de la inspección</h4>
                   </div>
                   <div className="p-4">
-                    <div className="relative rounded overflow-hidden bg-black aspect-video">
-                      <video 
-                        src={inspeccion.videoFileUrl}
-                        controls
-                        className="w-full h-full"
-                        poster="/video-poster.png"
-                        onError={(e) => {
-                          const target = e.target as HTMLVideoElement;
-                          const parent = target.parentElement;
-                          if (parent) {
-                            target.style.display = "none";
-                            const errorDiv = document.createElement("div");
-                            errorDiv.className = "absolute inset-0 flex items-center justify-center bg-gray-100";
-                            errorDiv.innerHTML = `
-                              <div class="text-center p-4">
-                                <p class="text-red-500 mb-2">Error al cargar el video</p>
-                                <a href="${inspeccion.videoFileUrl}" target="_blank" rel="noopener noreferrer" 
-                                   class="text-blue-500 underline">
-                                  Abrir video en nueva pestaña
-                                </a>
-                              </div>
-                            `;
-                            parent.appendChild(errorDiv);
-                          }
-                        }}
-                      ></video>
-                    </div>
+                    <VideoPlayer 
+                      src={inspeccion.videoFileUrl} 
+                      poster="/video-poster.png"
+                    />
                     
                     <div className="mt-4">
                       <a 

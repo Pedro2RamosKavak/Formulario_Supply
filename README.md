@@ -1,84 +1,115 @@
 # Sistema de Inspección de Vehículos
 
-Aplicación web para realizar inspecciones vehiculares con capacidad de subir imágenes y videos a Google Drive a través de Zapier.
+Este proyecto consiste en un sistema completo para realizar inspecciones de vehículos, con tres aplicaciones principales:
+
+1. **Form App (Puerto 3000)**: Aplicación para realizar inspecciones de vehículos, capturar fotos y videos.
+2. **Review App (Puerto 3001)**: Panel administrativo para revisar y aprobar/rechazar inspecciones.
+3. **Backend (Puerto 3003)**: Servidor API para almacenar y gestionar datos.
 
 ## Características
 
-- Formulario de inspección vehicular completo
-- Captura de fotos de documentos y condiciones del vehículo
-- Grabación de video
-- Integración con Zapier para subir archivos a Google Drive
-- Registro en Google Sheets a través de Zapier
-- Organización por cliente (email y placa)
+- Formulario de inspección completo e intuitivo
+- Captura de fotos y videos del vehículo
+- Panel administrativo para revisar inspecciones
+- Integración con Zapier para notificaciones
+- Almacenamiento de datos en Amazon S3
 
-## Configuración para desarrollo
+## Requisitos
 
-1. Clona este repositorio
+- Node.js v18 o superior
+- npm o yarn
+- Cuentas en AWS S3 (opcional) y Zapier
+
+## Configuración Inicial
+
+1. Clona el repositorio:
+   ```
+   git clone <repositorio>
+   cd vehicle-inspection
+   ```
+
 2. Instala las dependencias:
-   ```bash
-   npm install --legacy-peer-deps
    ```
-3. Configura la variable de entorno para Zapier (ver sección siguiente)
-4. Inicia el servidor de desarrollo:
-   ```bash
-   npm run dev
+   npm install
    ```
 
-## Variables de entorno
+3. Configura las variables de entorno (opcional):
+   - Crea un archivo `.env` en el directorio raíz
+   - Configura las siguientes variables:
+     ```
+     AWS_ACCESS_KEY_ID=tu_clave_de_aws
+     AWS_SECRET_ACCESS_KEY=tu_secreto_de_aws
+     AWS_REGION=sa-east-1
+     BUCKET=nombre_de_tu_bucket
+     ```
 
-Crea un archivo `.env.local` con la siguiente variable:
+## Uso
+
+### Iniciar todas las aplicaciones
+
+Simplemente ejecuta:
 
 ```
-NEXT_PUBLIC_ZAPIER_WEBHOOK_URL=tu_url_webhook_zapier
+./start.sh
 ```
 
-## Configuración en Vercel
+Este script inicia las tres aplicaciones y verifica que los puertos estén disponibles.
 
-Para desplegar en Vercel, sigue estos pasos:
+### Iniciar aplicaciones individualmente
 
-1. Importa el repositorio en Vercel
-2. Configura la variable de entorno NEXT_PUBLIC_ZAPIER_WEBHOOK_URL
-3. Desplegar en la URL: https://virtuaiskavakbrasil.vercel.app/
+Si prefieres iniciar las aplicaciones por separado:
 
-## Configuración de Zapier
+```
+# Backend
+cd apps/backend
+npm run dev
 
-Para configurar Zapier correctamente:
+# Form App
+cd apps/form-app
+npm run dev
 
-1. Crea un nuevo Zap en Zapier
-2. Configura el trigger como "Webhooks by Zapier" > "Catch Hook"
-3. Copia la URL del webhook generada y pégala en tu archivo `.env.local`
-4. Configura los pasos necesarios para:
-   - Subir archivos a Google Drive (usando "Upload File from URL" o "Create File")
-   - Guardar datos en Google Sheets (usando "Create Spreadsheet Row")
+# Review App
+cd apps/review-app
+npm run dev
+```
 
-### Solución para archivos en formato Base64
+## Acceso
 
-El sistema puede enviar archivos en formato Base64 a Zapier. Para procesarlos:
+- Form App: http://localhost:3000
+- Review App: http://localhost:3001
+- Backend API: http://localhost:3003/api
 
-1. Usa un paso "Code by Zapier" para convertir el contenido Base64 a un archivo
-2. Luego usa "Google Drive" > "Create File" para guardar el archivo en Drive
+## Integración con Zapier
 
-Los campos importantes que recibirás en Zapier incluyen:
-- `crlv_file_content` - Contenido Base64 del archivo CRLV
-- `crlv_file_name` - Nombre del archivo CRLV
-- `crlv_file_type` - Tipo MIME del archivo CRLV
-- Y campos similares para otros archivos (video, fotos, etc.)
+El sistema está configurado para enviar datos a Zapier en dos momentos:
 
-## Google Sheets
+1. Al iniciar el formulario (datos iniciales)
+2. Al completar la inspección (datos completos)
 
-La aplicación está configurada para guardar datos en la hoja:
-https://docs.google.com/spreadsheets/d/1vEI_R43cQcqShLA_63IgJ01hvI5wYDN28Ged3dHNkzY/edit?gid=0
+El webhook de Zapier está configurado en:
+`https://hooks.zapier.com/hooks/catch/10702199/275d6f8/`
 
-Específicamente en la pestaña "Respuestas".
+## Estructura del Proyecto
 
-## Google Drive
+```
+vehicle-inspection/
+├── apps/
+│   ├── backend/        # API y servidor
+│   ├── form-app/       # Aplicación de formulario
+│   └── review-app/     # Panel de revisión administrativo
+├── packages/
+│   ├── ui/             # Componentes UI compartidos
+│   └── types/          # Tipos compartidos
+└── start.sh            # Script para iniciar todo el sistema
+```
 
-Todos los archivos se guardarán en:
-https://drive.google.com/drive/folders/18mfjOiDvyO1xkI0nXaYJNYVPohfeHaeV
+## Tecnologías utilizadas
 
-## Estructura del proyecto
+- **Backend**: Express.js, AWS S3
+- **Frontend**: Next.js 15, React 19, Tailwind CSS
+- **Monorepo**: Turborepo
+- **Componentes UI compartidos**: Tailwind + React
 
-- `app/api/submit-form`: API para enviar datos a Zapier
-- `app/api/zapier-webhook`: Webhook para recibir confirmaciones de Zapier
-- `lib/zapier-service.ts`: Servicios para interactuar con Zapier
-- `components/pasos`: Componentes del formulario por pasos 
+## Licencia
+
+MIT 

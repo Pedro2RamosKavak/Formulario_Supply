@@ -3,7 +3,7 @@
 import { type FormikProps, Form } from "formik"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react"
+import { AlertCircle, ArrowRight, ArrowLeft, ExternalLink, Video } from "lucide-react"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Image from "next/image"
@@ -18,43 +18,38 @@ export default function PasoVideo({ formik, onPrevious, actualizarDatos }: PasoV
   return (
     <Card className="border-none shadow-none">
       <CardHeader className="bg-black text-white p-6">
-        <CardTitle className="text-2xl font-bold">📹 Vídeo do Veículo</CardTitle>
+        <CardTitle className="text-2xl font-bold flex items-center">
+          <Video className="mr-2 h-5 w-5" />
+          Vídeo do Veículo
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
         <Form className="space-y-6">
           <div className="space-y-4">
             <div className="border rounded-md overflow-hidden">
               <div className="p-4 bg-gray-50">
-                <h3 className="font-medium mb-4">Instruções para gravação do vídeo</h3>
+                <h3 className="font-medium mb-4 text-lg">Instruções para gravação do vídeo:</h3>
 
                 <div className="space-y-4">
-                  <p>
-                    Para uma avaliação completa do seu veículo, precisamos de um vídeo que mostre todos os detalhes
-                    importantes. Siga estas instruções:
-                  </p>
-
-                  <ol className="list-decimal pl-5 space-y-2">
+                  <ol className="list-decimal pl-5 space-y-3">
                     <li>
-                      <strong>Prepare o veículo:</strong> Estacione em um local bem iluminado e com espaço para caminhar
-                      ao redor do veículo.
+                      Comece mostrando a <strong>placa dianteira</strong> e a frente do veículo (para-choque e faróis).
                     </li>
                     <li>
-                      <strong>Exterior:</strong> Comece gravando a parte frontal do veículo e caminhe lentamente ao
-                      redor, mostrando todos os lados (frente, lateral direita, traseira, lateral esquerda).
+                      Caminhe pelo <strong>lado do passageiro</strong> mostrando lataria e pneus.
                     </li>
                     <li>
-                      <strong>Detalhes externos:</strong> Aproxime a câmera para mostrar detalhes como faróis,
-                      lanternas, rodas, pneus e qualquer dano visível.
+                      Mostre a <strong>traseira</strong> do veículo (para-choque e lanternas).
                     </li>
                     <li>
-                      <strong>Interior:</strong> Mostre o interior do veículo, incluindo bancos, painel, volante,
-                      console central e teto.
+                      Caminhe pelo <strong>lado do motorista</strong> repetindo o processo.
                     </li>
                     <li>
-                      <strong>Porta-malas:</strong> Abra o porta-malas e mostre seu interior e capacidade.
+                      Teste os <strong>comandos das chaves</strong> (travar/destravar).
                     </li>
                     <li>
-                      <strong>Motor:</strong> Abra o capô e mostre o compartimento do motor.
+                      Mostre o <strong>interior</strong>: painel com quilometragem, comandos do volante, vidros, 
+                      teto solar (se houver), bancos elétricos (se houver), e central multimídia.
                     </li>
                   </ol>
 
@@ -68,18 +63,27 @@ export default function PasoVideo({ formik, onPrevious, actualizarDatos }: PasoV
                     />
                   </div>
 
-                  <p>O vídeo deve ter entre 1 e 3 minutos de duração e não exceder 2GB de tamanho.</p>
+                  <Alert className="bg-yellow-50 border-yellow-200 mt-4">
+                    <AlertCircle className="h-4 w-4 text-yellow-800" />
+                    <AlertDescription className="text-yellow-800 ml-2">
+                      ⚠️ O veículo deve permanecer <strong>ligado</strong> durante toda a gravação.
+                    </AlertDescription>
+                  </Alert>
+
+                  <p className="text-sm text-gray-600">
+                    O vídeo deve ter entre 1 e 3 minutos de duração e não exceder 2GB de tamanho.
+                  </p>
 
                   <div className="mt-4 bg-blue-50 p-3 rounded-md border border-blue-200">
                     <p className="text-blue-800 mb-2 font-medium">Vídeo de exemplo</p>
-                    <p className="text-blue-700 mb-2">
-                      Assista a um vídeo de exemplo para entender como gravar corretamente:
+                    <p className="text-blue-700 mb-2 text-sm">
+                      Se preferir, assista a um vídeo de exemplo para entender como gravar corretamente:
                     </p>
                     <a
                       href="https://kavak.com.br/video-modelo"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                      className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm"
                     >
                       Assistir vídeo de exemplo
                       <ExternalLink className="ml-2 h-4 w-4" />
@@ -88,13 +92,6 @@ export default function PasoVideo({ formik, onPrevious, actualizarDatos }: PasoV
                 </div>
               </div>
             </div>
-
-            <Alert className="bg-blue-50 border-blue-200">
-              <AlertDescription className="text-blue-800">
-                Grave um vídeo de 360° do exterior e interior do veículo seguindo as instruções acima. O vídeo é
-                essencial para a avaliação completa do seu veículo.
-              </AlertDescription>
-            </Alert>
 
             <div className="space-y-2">
               <FileUpload

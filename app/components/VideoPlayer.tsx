@@ -3,73 +3,58 @@
 import React, { useState } from 'react';
 
 interface VideoPlayerProps {
-  src: string;
-  title: string;
+  src: string | null;
+  poster?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, title }) => {
-  const [error, setError] = useState(false);
-  
-  if (!src || src === '') {
+export default function VideoPlayer({ src, poster = '/video-poster.png' }: VideoPlayerProps) {
+  const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  if (!src) {
     return (
-      <div className="rounded-lg overflow-hidden bg-gray-100 shadow-md">
-        <div className="p-2 text-center font-medium bg-gray-200">{title || 'Video'}</div>
-        <div className="flex items-center justify-center p-4 h-64">
-          <p className="text-gray-500">No hay video disponible</p>
-        </div>
+      <div className="relative aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+        <p className="text-gray-500">No hay video disponible</p>
       </div>
     );
   }
-  
-  if (error) {
-    return (
-      <div className="rounded-lg overflow-hidden bg-gray-100 shadow-md">
-        <div className="p-2 text-center font-medium bg-gray-200">{title || 'Video'}</div>
-        <div className="flex items-center justify-center p-6 flex-col h-64">
-          <p className="text-red-500 mb-3">Error al cargar el video</p>
-          <a 
-            href={src} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
-          >
-            Abrir video en una nueva pestaña
-          </a>
-          <p className="text-gray-500 text-sm mt-4 text-center">
-            URL: {src}
-          </p>
-        </div>
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="rounded-lg overflow-hidden shadow-md">
-      <div className="p-2 text-center font-medium bg-gray-200">{title || 'Video'}</div>
-      <video 
-        src={src}
-        controls
-        poster="/video-poster.png"
-        className="w-full"
-        onError={() => setError(true)}
-      >
-        Tu navegador no soporta la reproducción de videos.
-        <a href={src}>Descargar video</a>
-      </video>
-      {src && (
-        <div className="p-2 text-center">
-          <a 
-            href={src} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline text-sm"
-          >
-            Abrir video en una nueva pestaña
-          </a>
+    <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
         </div>
+      )}
+      
+      {isError ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <p className="text-red-500 mb-2">Error al cargar el video</p>
+            <a 
+              href={src} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              Abrir video en nueva pestaña
+            </a>
+          </div>
+        </div>
+      ) : (
+        <video
+          src={src}
+          poster={poster}
+          controls
+          className="w-full h-full"
+          onLoadStart={() => setIsLoading(true)}
+          onLoadedData={() => setIsLoading(false)}
+          onError={() => {
+            setIsError(true);
+            setIsLoading(false);
+          }}
+        />
       )}
     </div>
   );
-};
-
-export default VideoPlayer; 
+} 

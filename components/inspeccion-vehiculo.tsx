@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Formik } from "formik"
+import { Formik, FormikProps } from "formik"
 import * as Yup from "yup"
 import PasoIntroduccion from "./pasos/paso-introduccion"
 import PasoInformacionGeneral from "./pasos/paso-informacion-general"
@@ -14,6 +14,46 @@ import { AlertCircle, Info } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
+
+// Tipos
+interface FormValues {
+  // Información general
+  ownerName: string;
+  email: string;
+  phone: string;
+  licensePlate: string;
+  currentKm: string | number;
+  modelYear: string | number;
+  hasChassisNumber: string;
+  hasSecondKey: string;
+  crlvPhoto: File | null;
+  crlvPhotoUrl: string;
+  
+  // Condición del vehículo
+  vehicleConditions: string[];
+  conditionDescription: string;
+  safetyItems: string[];
+  safetyItemsPhoto: File | null;
+  safetyItemsPhotoUrl: string;
+  hasAirConditioner: string;
+  hasWindshieldDamage: string;
+  windshieldPhoto: File | null;
+  windshieldPhotoUrl: string;
+  hasLightsDamage: string;
+  lightsPhoto: File | null;
+  lightsPhotoUrl: string;
+  hasTiresDamage: string;
+  tiresPhoto: File | null;
+  tiresPhotoUrl: string;
+  hasOriginalSoundSystem: string;
+  
+  // Video
+  videoFile: File | null;
+  videoFileUrl: string;
+  videoBlob?: Blob;
+  
+  [key: string]: any; // Para permitir acceso dinámico
+}
 
 // Definir los pasos del formulario
 const PASOS = ["introduccion", "informacion-general", "condicion-vehiculo", "video", "confirmacion", "agradecimiento"]
@@ -36,8 +76,17 @@ const esquemaValidacion = {
   }),
   "condicion-vehiculo": Yup.object({
     vehicleConditions: Yup.array().min(1, "Selecione pelo menos uma opção"),
+    conditionDescription: Yup.string().when("vehicleConditions", {
+      is: (conditions: string[]) => conditions.length > 0 && !conditions.includes("none"),
+      then: () => Yup.string().required("Descrição é obrigatória quando alguma condição for selecionada"),
+      otherwise: () => Yup.string().notRequired(),
+    }),
     safetyItems: Yup.array().min(1, "Selecione pelo menos um item de segurança"),
-    safetyItemsPhoto: Yup.mixed().required("Foto dos itens de segurança é obrigatória"),
+    safetyItemsPhoto: Yup.mixed().when("safetyItems", {
+      is: (items: string[]) => items.length > 0 && !items.includes("none"),
+      then: () => Yup.mixed().required("Foto dos itens de segurança é obrigatória"),
+      otherwise: () => Yup.mixed().notRequired(),
+    }),
     hasAirConditioner: Yup.string().required("Este campo é obrigatório"),
     hasWindshieldDamage: Yup.string().required("Este campo é obrigatório"),
     windshieldPhoto: Yup.mixed().when("hasWindshieldDamage", {
@@ -80,11 +129,8 @@ export default function InspeccionVehiculo() {
   // Estado para la dirección de la transición
   const [direction, setDirection] = useState(0)
 
-  // Estado para verificar si la URL de Zapier está configurada
-  const [zapierConfigured, setZapierConfigured] = useState(true)
-
   // Estado para los datos del formulario
-  const [datosFormulario, setDatosFormulario] = useState({
+  const [datosFormulario, setDatosFormulario] = useState<FormValues>({
     // Información general
     ownerName: "",
     email: "",
@@ -99,6 +145,7 @@ export default function InspeccionVehiculo() {
 
     // Condición del vehículo
     vehicleConditions: [] as string[],
+    conditionDescription: "",
     safetyItems: [] as string[],
     safetyItemsPhoto: null,
     safetyItemsPhotoUrl: "",
@@ -117,22 +164,11 @@ export default function InspeccionVehiculo() {
     // Video
     videoFile: null,
     videoFileUrl: "",
-    videoBlob: undefined as Blob | undefined,
+    videoBlob: undefined,
   })
 
   // Tema
   const { theme } = useTheme()
-
-  // Verificar si la URL de Zapier está configurada
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_ZAPIER_WEBHOOK_URL) {
-      console.warn("La URL del webhook de Zapier no está configurada")
-      setZapierConfigured(false)
-    } else {
-      console.log("URL del webhook de Zapier configurada:", process.env.NEXT_PUBLIC_ZAPIER_WEBHOOK_URL)
-      setZapierConfigured(true)
-    }
-  }, [])
 
   // Cargar datos guardados al iniciar
   useEffect(() => {
@@ -246,7 +282,7 @@ export default function InspeccionVehiculo() {
   }
 
   // Función para actualizar los datos del formulario
-  const actualizarDatos = (datos: any) => {
+  const actualizarDatos = (datos: Partial<FormValues>) => {
     setDatosFormulario((prevState) => ({
       ...prevState,
       ...datos,
@@ -307,11 +343,100 @@ export default function InspeccionVehiculo() {
     setError("")
 
     try {
-      // Regenerar URLs de objetos antes de mostrar la pantalla de agradecimiento
-      regenerarURLsDeObjetos();
+      // 1. POST /submit para obtener presigned URLs
+      const requiredFiles = [
+        'crlvPhoto',
+        'safetyItemsPhoto',
+        // Solo incluir fotos de daños si el usuario indicó que existen (hasXDamage === 'sim')
+        ...(datosFormulario.hasWindshieldDamage === 'sim' ? ['windshieldPhoto'] : []),
+        ...(datosFormulario.hasLightsDamage === 'sim' ? ['lightsPhoto'] : []),
+        ...(datosFormulario.hasTiresDamage === 'sim' ? ['tiresPhoto'] : []),
+        'videoFile'
+      ];
       
-      // La lógica de envío ahora está en el componente PasoConfirmacion
-      siguientePaso()
+      console.log("[DEBUG] Archivos a subir:", requiredFiles);
+      console.log("[DEBUG] Estado de daños:", {
+        parabrisa: datosFormulario.hasWindshieldDamage,
+        luces: datosFormulario.hasLightsDamage,
+        neumaticos: datosFormulario.hasTiresDamage
+      });
+      
+      const body = {
+        email: datosFormulario.email,
+        answers: datosFormulario,
+        requiredFiles
+      };
+      
+      // Usar el puerto correcto para el backend (3005)
+      const resp = await fetch('http://localhost:3005/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      if (!resp.ok) throw new Error('Error al crear inspección');
+      const { id, uploadUrls } = await resp.json();
+      console.log("[DEBUG] URLs obtenidas para archivos:", Object.keys(uploadUrls));
+
+      // 2. Subir cada archivo a S3 y guardar la URL pública
+      const s3Urls: Record<string, string> = {};
+      const fileMap: Record<string, File | null> = {
+        crlvPhoto: datosFormulario.crlvPhoto,
+        safetyItemsPhoto: datosFormulario.safetyItemsPhoto,
+        windshieldPhoto: datosFormulario.windshieldPhoto,
+        lightsPhoto: datosFormulario.lightsPhoto,
+        tiresPhoto: datosFormulario.tiresPhoto,
+        videoFile: datosFormulario.videoFile
+      };
+      
+      for (const key of requiredFiles) {
+        const file = fileMap[key];
+        const presignedUrl = uploadUrls[key];
+        
+        if (file && presignedUrl) {
+          console.log(`[DEBUG] Subiendo archivo ${key}...`);
+          const uploadResp = await fetch(presignedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': key === 'videoFile' ? 'video/mp4' : 'image/jpeg' },
+            body: file
+          });
+          
+          if (!uploadResp.ok) {
+            console.error(`[ERROR] Fallo al subir ${key}:`, uploadResp.status, uploadResp.statusText);
+            throw new Error(`Error al subir ${key}`);
+          }
+          
+          // Guardar la URL pública (sin query params)
+          s3Urls[`${key}Url`] = presignedUrl.split('?')[0];
+          console.log(`[DEBUG] Archivo ${key} subido correctamente`);
+        } else {
+          console.warn(`[WARN] No se pudo subir ${key}, archivo o URL no disponible`);
+        }
+      }
+      
+      // 3. Enviar los datos finales al backend, incluyendo las URLs públicas
+      const finalData = {
+        id,
+        ...datosFormulario,
+        ...s3Urls
+      };
+      
+      console.log("[DEBUG] Enviando datos finales al backend");
+      // Usar el puerto correcto para el backend (3005)
+      const finalResp = await fetch('http://localhost:3005/submit/final', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData)
+      });
+      
+      if (!finalResp.ok) {
+        const errorData = await finalResp.json();
+        throw new Error(errorData.message || 'Error al guardar la inspección');
+      }
+      
+      // 4. Mostrar agradecimiento
+      console.log("[DEBUG] Formulario enviado exitosamente");
+      siguientePaso();
     } catch (error: any) {
       console.error("Error al enviar el formulario:", error)
       setError(error.message || "Ocorreu um erro ao enviar o formulário. Por favor, tente novamente.")
@@ -360,6 +485,7 @@ export default function InspeccionVehiculo() {
 
       // Condición del vehículo
       vehicleConditions: [],
+      conditionDescription: "",
       safetyItems: [],
       safetyItemsPhoto: null,
       safetyItemsPhotoUrl: "",
@@ -395,13 +521,13 @@ export default function InspeccionVehiculo() {
           <Formik
             initialValues={datosFormulario}
             validationSchema={esquemaValidacion["informacion-general"]}
-            onSubmit={(values) => {
+            onSubmit={(values: FormValues) => {
               actualizarDatos(values)
               siguientePaso()
             }}
             enableReinitialize
           >
-            {(formikProps) => (
+            {(formikProps: FormikProps<FormValues>) => (
               <PasoInformacionGeneral
                 formik={formikProps}
                 onPrevious={pasoAnterior}
@@ -415,13 +541,13 @@ export default function InspeccionVehiculo() {
           <Formik
             initialValues={datosFormulario}
             validationSchema={esquemaValidacion["condicion-vehiculo"]}
-            onSubmit={(values) => {
+            onSubmit={(values: FormValues) => {
               actualizarDatos(values)
               siguientePaso()
             }}
             enableReinitialize
           >
-            {(formikProps) => (
+            {(formikProps: FormikProps<FormValues>) => (
               <PasoCondicionVehiculo formik={formikProps} onPrevious={pasoAnterior} actualizarDatos={actualizarDatos} />
             )}
           </Formik>
@@ -431,13 +557,13 @@ export default function InspeccionVehiculo() {
           <Formik
             initialValues={datosFormulario}
             validationSchema={esquemaValidacion.video}
-            onSubmit={(values) => {
+            onSubmit={(values: FormValues) => {
               actualizarDatos(values)
               siguientePaso()
             }}
             enableReinitialize
           >
-            {(formikProps) => (
+            {(formikProps: FormikProps<FormValues>) => (
               <PasoVideo formik={formikProps} onPrevious={pasoAnterior} actualizarDatos={actualizarDatos} />
             )}
           </Formik>
@@ -465,15 +591,6 @@ export default function InspeccionVehiculo() {
         <div className="flex justify-center mb-8">
           <img src="/images/KAVAK_LOGO_MAIN_BLACK.png" alt="Kavak Logo" className="h-12 md:h-16" />
         </div>
-
-        {!zapierConfigured && (
-          <Alert variant="destructive" className="mb-6 bg-yellow-50 border-yellow-200">
-            <Info className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-700">
-              A URL do webhook do Zapier não está configurada. Os dados do formulário não serão enviados.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {error && (
           <Alert variant="destructive" className="mb-6">

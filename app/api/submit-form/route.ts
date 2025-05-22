@@ -1,115 +1,86 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { saveInspection } from "@/lib/server-storage"
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+const BUCKET = process.env.S3_BUCKET!;
 
 export async function POST(request: NextRequest) {
   console.log("Recibida solicitud en /api/submit-form")
   
   try {
-    // Obtener los datos de la solicitud
-    const data = await request.json()
-    
-    // Generar un ID único para la inspección
-    const timestamp = Date.now()
-    const randomId = Math.random().toString(36).substring(2, 10)
-    const inspectionId = `insp_${timestamp}_${randomId}`
-    
-    // Agregar información adicional a los datos
-    const dataWithMetadata = {
+    const data = await request.json();
+    console.log("Datos recibidos:", JSON.stringify({
       ...data,
-      id: inspectionId,
-      submissionDate: new Date().toISOString()
-    }
-    
-    // Guardar la inspección en el servidor (pasando un único objeto como espera la función)
-    await saveInspection(dataWithMetadata)
-    console.log("Inspección guardada en el servidor con ID:", inspectionId)
-    
-    // Obtener URLs de imágenes (si fueron proporcionadas)
-    const crlvImageUrl = data.crlv_image_url || data.crlvPhotoUrl || ""
-    const safetyItemsImageUrl = data.safety_items_image_url || data.safetyItemsPhotoUrl || ""
-    const windshieldPhotoUrl = data.windshieldPhotoUrl || ""
-    const lightsPhotoUrl = data.lightsPhotoUrl || ""
-    const tiresPhotoUrl = data.tiresPhotoUrl || ""
-    const videoFileUrl = data.videoFileUrl || ""
-    
-    console.log("URLs de imágenes recibidas:", {
-      crlv_image_url: crlvImageUrl,
-      safety_items_image_url: safetyItemsImageUrl,
-      windshield_photo_url: windshieldPhotoUrl,
-      lights_photo_url: lightsPhotoUrl,
-      tires_photo_url: tiresPhotoUrl,
-      video_file_url: videoFileUrl
-    })
-    
-    // Solo mostrar las claves para debugging
-    console.log("Datos a enviar a Zapier:", Object.keys(data))
-    
-    // Enviar datos a Zapier si está configurado
-    let zapierResult = {}
-    const webhookUrl = process.env.NEXT_PUBLIC_ZAPIER_WEBHOOK_URL
-    
-    if (!webhookUrl) {
-      console.error("URL del webhook de Zapier no configurada")
-    } else {
-      console.log(`Enviando datos a Zapier: ${webhookUrl}`)
+      // No mostrar todo el contenido para evitar logs demasiado grandes
+      answers: data.answers ? "...contenido omitido..." : undefined
+    }));
+
+    // Paso 1: Solicitud de presigned URLs
+    if (Array.isArray(data.requiredFiles)) {
+      // Generar un ID único para la inspección
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 10);
+      const inspectionId = `insp_${timestamp}_${randomId}`;
       
-      // Realizar la petición a Zapier
-      const zapierResponse = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      })
-      
-      if (!zapierResponse.ok) {
-        const errorText = await zapierResponse.text()
-        console.error("Error en la respuesta de Zapier:", errorText)
-        throw new Error(`Error al enviar a Zapier: ${zapierResponse.status} ${zapierResponse.statusText}`)
+      console.log(`Generando URLs presignadas para ${data.requiredFiles.length} archivos`);
+
+      // Generar presigned URLs para cada archivo requerido
+      const uploadUrls: Record<string, string> = {};
+      for (const key of data.requiredFiles) {
+        const ext = key === 'videoFile' ? 'mp4' : 'jpg';
+        const objectKey = `inspections/${inspectionId}/${key}.${ext}`;
+        const command = new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: objectKey,
+          ContentType: key === 'videoFile' ? 'video/mp4' : 'image/jpeg',
+        });
+        const url = await getSignedUrl(s3, command, { expiresIn: 600 });
+        uploadUrls[key] = url;
+        console.log(`URL generada para ${key}: ${url.split('?')[0]}`);
       }
-      
-      // Obtener y mostrar la respuesta de Zapier
-      zapierResult = await zapierResponse.json()
-      console.log("Respuesta de Zapier:", zapierResult)
+      return NextResponse.json({ id: inspectionId, uploadUrls });
+    }
+
+    // Paso 2: Guardar la inspección (debe incluir las URLs de S3)
+    // data debe tener: id, ownerName, licensePlate, ... y las URLs de S3
+    if (!data.id) {
+      return NextResponse.json({ success: false, error: 'Falta el ID de inspección' }, { status: 400 });
     }
     
-    // Crear un objeto con los datos de la inspección incluyendo todas las URLs
-    const inspectionData = {
-      id: inspectionId,
-      titular: data.titular || data.ownerName || 'Sin nombre',
-      placa: data.placa || data.licensePlate || 'Sin placa',
-      email: data.email || 'Sin email',
+    console.log(`Guardando inspección con ID ${data.id}`);
+    
+    // Procesar las fotos de daños si existen
+    const answers = data.answers || {};
+    const processedData = {
+      ...data,
+      hasWindshieldDamage: answers.hasWindshieldDamage === "sim",
+      hasLightsDamage: answers.hasLightsDamage === "sim",
+      hasTiresDamage: answers.hasTiresDamage === "sim",
       submissionDate: new Date().toISOString(),
-      // Incluir URLs de imágenes y video
-      crlvPhotoUrl: crlvImageUrl,
-      safetyItemsPhotoUrl: safetyItemsImageUrl,
-      windshieldPhotoUrl: windshieldPhotoUrl,
-      lightsPhotoUrl: lightsPhotoUrl,
-      tiresPhotoUrl: tiresPhotoUrl,
-      videoFileUrl: videoFileUrl
-    }
+    };
     
-    // Devolver una respuesta exitosa con información relevante
-    // Incluimos instrucción para almacenar en localStorage
-    return NextResponse.json({
-      success: true,
-      inspectionId,
-      zapierResult,
-      storeInLocalStorage: true, // Bandera para indicar al cliente que guarde localmente
-      inspectionData
-    })
+    console.log(`Estado de daños procesado:`, {
+      parabrisa: processedData.hasWindshieldDamage,
+      luces: processedData.hasLightsDamage,
+      neumaticos: processedData.hasTiresDamage
+    });
     
+    await saveInspection(processedData);
+    console.log(`Inspección ${data.id} guardada exitosamente`);
+    return NextResponse.json({ success: true, inspectionId: data.id });
   } catch (error: any) {
-    console.error("Error en submit-form:", error)
-    
-    // Devolver error
+    console.error("Error en submit-form:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Error al procesar la solicitud", 
-        message: error.message,
-      },
+      { success: false, error: "Error al procesar la solicitud", message: error.message },
       { status: 500 }
-    )
+    );
   }
 }

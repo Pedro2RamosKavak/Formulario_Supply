@@ -362,5 +362,40 @@
     "videoFileUrl": "blob:http://localhost:3000/5226b14e-b24d-4aeb-b25e-aab748db7ad3",
     "id": "insp_1747357365943_x9c39k7m",
     "submissionDate": "2025-05-16T01:02:45.943Z"
+  },
+  {
+    "ownerName": "pet",
+    "email": "pedro.dosramos@kavak.com",
+    "phone": "+541122492977",
+    "licensePlate": "HOLA",
+    "currentKm": 1,
+    "modelYear": 2025,
+    "hasChassisNumber": "sim",
+    "hasSecondKey": "sim",
+    "crlvPhoto": {},
+    "crlvPhotoUrl": "blob:http://localhost:3004/e566853c-8dc6-4431-9240-9c1761adcb29",
+    "vehicleConditions": [
+      "none"
+    ],
+    "safetyItems": [
+      "wrench"
+    ],
+    "safetyItemsPhoto": {},
+    "safetyItemsPhotoUrl": "blob:http://localhost:3004/10f96777-caad-40fa-aa4b-990576f91ddf",
+    "hasAirConditioner": "sim",
+    "hasWindshieldDamage": "sim",
+    "windshieldPhoto": {},
+    "windshieldPhotoUrl": "blob:http://localhost:3004/63a4d99e-46df-4248-affb-bd84667285f5",
+    "hasLightsDamage": "sim",
+    "lightsPhoto": {},
+    "lightsPhotoUrl": "blob:http://localhost:3004/e8790428-b48d-4af0-9ab0-7ca91e2bb085",
+    "hasTiresDamage": "sim",
+    "tiresPhoto": {},
+    "tiresPhotoUrl": "blob:http://localhost:3004/7a682665-97ea-4034-a84f-6d4b89d90f13",
+    "hasOriginalSoundSystem": "sim",
+    "videoFile": {},
+    "videoFileUrl": "blob:http://localhost:3004/eafe5875-86a0-4b81-8846-888d2a467a7f",
+    "id": "insp_1747705369038_3g3udc0b",
+    "submissionDate": "2025-05-20T01:42:49.038Z"
   }
 ]
