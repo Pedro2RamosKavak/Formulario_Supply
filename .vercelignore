@@ -6,4 +6,6 @@ node_modules
 README.md
 README-Pruebas.md
 test-*
-prueba-* 
+prueba-*
+!bypass-types.sh
+!prepare-vercel.sh 
