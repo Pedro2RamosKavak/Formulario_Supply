@@ -228,6 +228,52 @@ apiRouter.post('/submit/final', async (req, res) => {
       if (!global.localDb.meta) global.localDb.meta = {};
       global.localDb.meta[id] = formData;
     }
+
+    // 🚀 ZAPIER INTEGRATION: Enviar datos completos a Zapier
+    try {
+      console.log('[ZAPIER-INTEGRATION] Enviando datos completos...');
+      
+      const zapierPayload = {
+        ...formData,
+        formType: 'complete',
+        submission_type: 'complete',
+        step: 'Complete',
+        submission_date: new Date().toISOString(),
+        formatted_date: new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
+      };
+
+      // Convertir arrays a strings para Zapier
+      if (Array.isArray(zapierPayload.safetyItems)) {
+        zapierPayload.safetyItems = zapierPayload.safetyItems.join(', ');
+      }
+
+      const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || "https://hooks.zapier.com/hooks/catch/10702199/275d6f8/";
+      
+      const zapierResponse = await fetch(ZAPIER_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'VehicleInspection/1.0'
+        },
+        body: JSON.stringify(zapierPayload)
+      });
+
+      if (zapierResponse.ok) {
+        console.log('[ZAPIER-INTEGRATION] Datos completos enviados exitosamente a Zapier');
+      } else {
+        console.warn('[ZAPIER-INTEGRATION] Error al enviar datos completos a Zapier:', zapierResponse.status);
+      }
+    } catch (zapierError) {
+      console.warn('[ZAPIER-INTEGRATION] Error al enviar datos completos a Zapier:', zapierError.message);
+      // No interrumpimos el flujo si falla Zapier
+    }
     
     res.json({ success: true });
   } catch (e) {
