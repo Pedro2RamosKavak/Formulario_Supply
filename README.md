@@ -112,4 +112,4 @@ vehicle-inspection/
 
 ## Licencia
 
-MIT 
+MIT # Deploy trigger Fri May 23 14:55:17 -03 2025
