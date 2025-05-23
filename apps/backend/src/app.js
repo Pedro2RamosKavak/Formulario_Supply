@@ -567,6 +567,32 @@ apiRouter.get('/review/:id', async (req, res) => {
     try {
       meta = await getJson(`meta/${id}.json`);
       console.log(`[DEBUG] Found inspection ${id} in meta/ folder`);
+      
+      // 🔧 IMAGES FIX: Copiar URLs de imágenes de answers a fileUrls para formato antiguo
+      if (meta.answers && !meta.fileUrls) {
+        meta.fileUrls = {};
+      }
+      
+      if (meta.answers && meta.fileUrls) {
+        // Mapear todas las URLs de imágenes desde answers hacia fileUrls
+        const imageMapping = {
+          'crlvFileUrl': 'crlvPhotoUrl',
+          'safetyItemsFileUrl': 'safetyItemsPhotoUrl', 
+          'windshieldDamagePhotoUrl': 'windshieldPhotoUrl',
+          'lightsDamagePhotoUrl': 'lightsPhotoUrl',
+          'tireDamagePhotoUrl': 'tiresPhotoUrl',
+          'videoFileUrl': 'videoFileUrl'
+        };
+        
+        Object.entries(imageMapping).forEach(([sourceKey, targetKey]) => {
+          if (meta.answers[sourceKey]) {
+            meta.fileUrls[targetKey] = meta.answers[sourceKey];
+            console.log(`[DEBUG-IMAGES] Mapped ${sourceKey} -> ${targetKey}: ${meta.answers[sourceKey].substring(0, 50)}...`);
+          }
+        });
+        
+        console.log(`[DEBUG-IMAGES] Format conversion complete. fileUrls now has ${Object.keys(meta.fileUrls).length} URLs`);
+      }
     } catch (err) {
       console.log(`[DEBUG] Inspection ${id} not found in meta/ folder, checking inspections/ folder`);
       
@@ -1085,12 +1111,46 @@ apiRouter.get('/test/images/:id', async (req, res) => {
     const id = req.params.id;
     console.log(`[TEST-IMAGES] Testing images for inspection ${id}`);
     
-    // Get inspection data
-    const inspectionData = await getJson(`meta/${id}.json`);
+    // Usar el mismo flujo que /api/review/:id para cargar la inspección completa
+    let inspectionData = null;
+    
+    // 1. Intentar formato antiguo
+    try {
+      inspectionData = await getJson(`meta/${id}.json`);
+      console.log(`[TEST-IMAGES] Found in meta/ folder`);
+      
+      // Aplicar el mismo fix de imágenes que en /api/review/:id
+      if (inspectionData.answers && !inspectionData.fileUrls) {
+        inspectionData.fileUrls = {};
+      }
+      
+      if (inspectionData.answers && inspectionData.fileUrls) {
+        const imageMapping = {
+          'crlvFileUrl': 'crlvPhotoUrl',
+          'safetyItemsFileUrl': 'safetyItemsPhotoUrl', 
+          'windshieldDamagePhotoUrl': 'windshieldPhotoUrl',
+          'lightsDamagePhotoUrl': 'lightsPhotoUrl',
+          'tireDamagePhotoUrl': 'tiresPhotoUrl',
+          'videoFileUrl': 'videoFileUrl'
+        };
+        
+        Object.entries(imageMapping).forEach(([sourceKey, targetKey]) => {
+          if (inspectionData.answers[sourceKey]) {
+            inspectionData.fileUrls[targetKey] = inspectionData.answers[sourceKey];
+          }
+        });
+      }
+    } catch (err) {
+      console.log(`[TEST-IMAGES] Not found in meta/, trying new format`);
+      return res.json({ 
+        error: 'Inspection not found in meta/ format. Use /api/review/:id for new format inspections.',
+        inspectionId: id 
+      });
+    }
     
     if (!inspectionData || !inspectionData.fileUrls) {
       return res.json({ 
-        error: 'No fileUrls found',
+        error: 'No fileUrls found after processing',
         data: inspectionData 
       });
     }
