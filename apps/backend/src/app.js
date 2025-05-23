@@ -19,11 +19,43 @@ dotenv.config();
 const app = express();
 
 // Configuración CORS para aceptar solicitudes en producción
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001', 
+  'https://kavak-supply-form-mf65flgdf-pedrodosramos-kavakcoms-projects.vercel.app',
+  'https://formulario-supply-kavak.vercel.app',
+  'https://kavak-brasil-form.vercel.app',
+  'https://kavakbrasilform.com',
+  'https://formulario-supply-review-app.vercel.app',
+  'https://kavak-review-team.vercel.app',
+  'https://kavak-inspections-review.vercel.app',
+  'https://review-kavak-brasil.vercel.app',
+  'https://equipe-review-kavak.vercel.app'
+];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Permitir todos los dominios de Vercel en desarrollo
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Permitir orígenes específicos
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Log para debugging
+    console.log(`[CORS] Origin blocked: ${origin}`);
+    callback(new Error('No permitido por CORS'));
+  },
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   credentials: true,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
 };
 
 app.use(cors(corsOptions));
