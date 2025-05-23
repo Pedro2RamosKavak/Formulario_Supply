@@ -156,7 +156,8 @@ export default function Home() {
 
   const handleVideoRecordClick = () => {
     if (videoFileRef.current) {
-      videoFileRef.current.setAttribute('capture', 'environment');
+      videoFileRef.current.setAttribute('capture', 'camcorder');
+      videoFileRef.current.setAttribute('accept', 'video/*');
       videoFileRef.current.click();
     }
   };
@@ -1272,7 +1273,7 @@ export default function Home() {
                           type="button" 
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePhotoClick(videoFileRef);
+                            handleVideoRecordClick();
                           }}
                           className="bg-blue-600 text-white px-3 py-2 rounded text-sm mr-2"
                         >
