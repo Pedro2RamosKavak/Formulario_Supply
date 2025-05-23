@@ -26,17 +26,13 @@ export async function getUploadUrl(key, mime, expiresSec = 300) {
   const command = new PutObjectCommand({ 
     Bucket: BUCKET, 
     Key: key, 
-    ContentType: mime,
-    // Configuración adicional para ayudar con CORS
-    CacheControl: 'max-age=31536000',
-    ServerSideEncryption: 'AES256'
+    ContentType: mime
   });
   
   return getSignedUrl(s3, command, { 
     expiresIn: expiresSec,
-    // Especificar headers que deben firmarse
-    signableHeaders: new Set(['host', 'content-type']),
-    // Usar algoritmo específico
+    // Solo firmar headers básicos para evitar 403
+    signableHeaders: new Set(['host']),
     signingRegion: process.env.AWS_REGION || 'sa-east-1'
   });
 }
