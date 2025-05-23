@@ -127,8 +127,5 @@ EOF
 echo "📦 Instalando tipos para dependencias..."
 npm install -D @types/react-dom@19 @types/react@19 @types/node@22 --no-save
 
-# Ejecutar build con banderas para ignorar errores de tipos
-echo "🚀 Ejecutando build con TypeScript ignorado..."
-SKIP_TYPE_CHECK=true NEXT_TELEMETRY_DISABLED=1 FORCE_COLOR=1 npm run build
-
-echo "✅ Build completado!" 
+# Ya no ejecutamos build aquí, se hará desde package.json
+echo "✅ Preparación completada!" 
