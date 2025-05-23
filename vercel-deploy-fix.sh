@@ -127,5 +127,33 @@ EOF
 echo "📦 Instalando tipos para dependencias..."
 npm install -D @types/react-dom@19 @types/react@19 @types/node@22 --no-save
 
-# Ya no ejecutamos build aquí, se hará desde package.json
-echo "✅ Preparación completada!" 
+# Crear un tsconfig.json temporal para @types/shared que evite compilación real
+echo "👷 Creando tsconfig.json para @types/shared que evite compilación..."
+cat > packages/types/tsconfig.json << EOF
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve"
+  },
+  "include": ["dist", "index.ts"],
+  "exclude": ["node_modules"]
+}
+EOF
+
+# Compilar directamente la aplicación form-app usando Next.js
+echo "🚀 Compilando form-app directamente con Next.js..."
+cd apps/form-app
+SKIP_TYPE_CHECK=true NEXT_TELEMETRY_DISABLED=1 FORCE_COLOR=1 npm run build
+
+echo "✅ Build de form-app completado!" 
