@@ -101,7 +101,7 @@ export default function DetailPage() {
     const fetchInspection = async () => {
       try {
         console.log(`[DEBUG-FRONTEND] Solicitando datos para inspección: ${id}`);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/review/${id}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/review/${id}`);
         if (!response.ok) throw new Error("Failed to fetch inspection");
         let data = await response.json();
         
@@ -199,7 +199,7 @@ export default function DetailPage() {
       
       console.log(`[DEBUG-FRONTEND] Enviando actualización de estado a: ${status}`);
       setIsUpdating(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/review/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/review/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -234,7 +234,7 @@ export default function DetailPage() {
       // Actualizar la lista en la página principal sin redirección
       try {
         console.log('[DEBUG-FRONTEND] Actualizando lista de inspecciones');
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/review/list?forceRefresh=true`, { 
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/review/list?forceRefresh=true`, { 
           method: "GET",
           headers: { "Cache-Control": "no-cache" } 
         });

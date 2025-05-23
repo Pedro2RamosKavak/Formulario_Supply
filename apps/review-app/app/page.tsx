@@ -69,7 +69,7 @@ export default function Home() {
       }
       
       // Agregar un parámetro para forzar recarga sin caché si es necesario
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/review/list${forceRefresh ? '?forceRefresh=true' : ''}`;
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/review/list${forceRefresh ? '?forceRefresh=true' : ''}`;
       console.log(`[DEBUG-VERBOSE] Fetching from URL: ${url}`);
       
       const response = await fetch(url, {
