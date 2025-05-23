@@ -9,6 +9,11 @@ export default function Home() {
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  
+  // Estados para la barra de progreso
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStep, setUploadStep] = useState('');
+  const [uploadingFiles, setUploadingFiles] = useState<{[key: string]: boolean}>({});
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -77,6 +82,25 @@ export default function Home() {
     localStorage.setItem('currentStep', currentStep.toString());
     localStorage.setItem('formData', JSON.stringify(formData));
   }, [currentStep, formData]);
+
+  // Prevenir que el usuario salga durante el envío
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (submitting) {
+        event.preventDefault();
+        event.returnValue = 'O formulário está sendo enviado. Tem certeza de que deseja sair?';
+        return 'O formulário está sendo enviado. Tem certeza de que deseja sair?';
+      }
+    };
+
+    if (submitting) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [submitting]);
 
   // Función para actualizar los datos del formulario
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,9 +365,14 @@ export default function Home() {
 
     setSubmitting(true);
     setSubmitError('');
+    setUploadProgress(0);
+    setUploadStep('Preparando envío...');
+    setUploadingFiles({});
 
     try {
       console.log('[SUBMIT] Iniciando envío del formulario...');
+      setUploadProgress(10);
+      setUploadStep('Verificando archivos...');
 
       // Determinar qué archivos son requeridos basado en las respuestas
       const requiredFiles = [
@@ -368,6 +397,9 @@ export default function Home() {
       };
 
       // 1. Obtener URLs pre-firmadas del backend
+      setUploadProgress(20);
+      setUploadStep('Conectando con el servidor...');
+      
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://formulario-supply-kavak.onrender.com';
       
       const signedUrlsResponse = await fetch(`${backendUrl}/api/submit`, {
@@ -390,9 +422,14 @@ export default function Home() {
       console.log('[SUBMIT] URLs pre-firmadas obtenidas:', Object.keys(signedUrlsData.uploadUrls));
       const inspectionId = signedUrlsData.id;
       
+      setUploadProgress(30);
+      setUploadStep('Preparando subida de archivos...');
+      
       // 2. Subir cada archivo usando las URLs pre-firmadas
       const uploadPromises = [];
       const s3Urls: Record<string, string> = {};
+      const totalFiles = requiredFiles.length;
+      let completedFiles = 0;
       
       for (const fileKey of requiredFiles) {
         const localFileKey = fileMapping[fileKey];
@@ -401,6 +438,8 @@ export default function Home() {
         
         if (file && signedUrl) {
           console.log(`[SUBMIT] Subiendo archivo ${fileKey} (${file.name}) para S3...`);
+          setUploadingFiles(prev => ({ ...prev, [fileKey]: true }));
+          setUploadStep(`Subiendo ${fileKey === 'videoFile' ? 'video' : 'imagen'}...`);
           
           // Crear promesa para subir el archivo
           const uploadPromise = fetch(signedUrl, {
@@ -413,6 +452,13 @@ export default function Home() {
             if (!response.ok) {
               throw new Error(`Error al subir archivo ${fileKey}: ${response.status} ${response.statusText}`);
             }
+            
+            // Marcar archivo como completado
+            setUploadingFiles(prev => ({ ...prev, [fileKey]: false }));
+            completedFiles++;
+            const fileProgress = 30 + (completedFiles / totalFiles) * 50; // 30% - 80%
+            setUploadProgress(Math.round(fileProgress));
+            setUploadStep(`Archivo ${completedFiles}/${totalFiles} completado`);
             
             // Extraer la URL del archivo en S3 de la respuesta
             const s3Url = signedUrl.split('?')[0]; // Quitar parámetros de query
@@ -429,8 +475,12 @@ export default function Home() {
       
       // Esperar a que se completen todas las subidas
       console.log('[SUBMIT] Esperando que se completen todas las subidas...');
+      setUploadStep('Finalizando subidas...');
       await Promise.all(uploadPromises);
       console.log('[SUBMIT] Todas las subidas completadas');
+      
+      setUploadProgress(85);
+      setUploadStep('Guardando información...');
       
       // 3. Enviar datos finales al backend Express.js
       console.log('[SUBMIT] Enviando datos finales al backend...');
@@ -470,6 +520,12 @@ export default function Home() {
       const submitResult = await submitResponse.json();
       console.log('[SUBMIT] Formulario enviado exitosamente:', submitResult);
       
+      setUploadProgress(100);
+      setUploadStep('¡Completado exitosamente!');
+      
+      // Pequeña pausa para mostrar el progreso completo
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Actualizar la UI para mostrar éxito
       setFormSubmitted(true);
       setCurrentStep(7);
@@ -481,8 +537,11 @@ export default function Home() {
     } catch (error: any) {
       console.error("[ERROR] Error al enviar el formulario:", error);
       setSubmitError(error.message || 'Ocorreu um erro ao enviar o formulário. Tente novamente.');
+      setUploadProgress(0);
+      setUploadStep('');
     } finally {
       setSubmitting(false);
+      setUploadingFiles({});
     }
   };
 
@@ -1753,29 +1812,67 @@ export default function Home() {
               </div>
               
               <div className="border-t border-gray-200 pt-4">
-                <button
-                  type="button"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center"
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Enviando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Enviar inspeção</span>
-                      <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-                      </svg>
-                    </>
-                  )}
-                </button>
+                {submitting ? (
+                  <div className="space-y-4">
+                    {/* Barra de Progreso Principal */}
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 ease-out relative"
+                        style={{ width: `${uploadProgress}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Información del Progreso */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-700">
+                        {uploadStep}
+                      </span>
+                      <span className="text-sm font-medium text-blue-700">
+                        {uploadProgress}%
+                      </span>
+                    </div>
+                    
+                    {/* Indicadores de Archivos */}
+                    {Object.keys(uploadingFiles).length > 0 && (
+                      <div className="space-y-2">
+                        {Object.entries(uploadingFiles).map(([fileKey, isUploading]) => (
+                          <div key={fileKey} className="flex items-center space-x-2">
+                            <div className={`w-3 h-3 rounded-full ${isUploading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`}></div>
+                            <span className="text-xs text-gray-600">
+                              {fileKey === 'videoFile' ? '📹 Video' : '📷 Imagen'} - {isUploading ? 'Subiendo...' : 'Completado'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Mensaje de No Salir */}
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-md">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        <span className="text-sm text-yellow-800 font-medium">
+                          Por favor, não feche esta página. O envio está em progresso...
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition-colors flex items-center justify-center"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                  >
+                    <span>Enviar inspeção</span>
+                    <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           </>
