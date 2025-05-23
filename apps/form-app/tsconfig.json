@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "skipLibCheck": true,
+    "noEmit": true,
     "paths": {
       "@/*": [
         "./*"
