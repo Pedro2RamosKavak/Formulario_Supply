@@ -23,8 +23,22 @@ const s3 = new S3Client({
 });
 
 export async function getUploadUrl(key, mime, expiresSec = 300) {
-  const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: mime });
-  return getSignedUrl(s3, command, { expiresIn: expiresSec });
+  const command = new PutObjectCommand({ 
+    Bucket: BUCKET, 
+    Key: key, 
+    ContentType: mime,
+    // Configuración adicional para ayudar con CORS
+    CacheControl: 'max-age=31536000',
+    ServerSideEncryption: 'AES256'
+  });
+  
+  return getSignedUrl(s3, command, { 
+    expiresIn: expiresSec,
+    // Especificar headers que deben firmarse
+    signableHeaders: new Set(['host', 'content-type']),
+    // Usar algoritmo específico
+    signingRegion: process.env.AWS_REGION || 'sa-east-1'
+  });
 }
 
 export async function getReadUrl(key, expiresSec = 3600) {
