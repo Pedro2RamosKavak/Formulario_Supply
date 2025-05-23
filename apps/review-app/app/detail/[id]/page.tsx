@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "../../../../../packages/ui";
 import type { Inspection } from "../../../../../packages/types/index";
+import ImageWithFallback from "./ImageWithFallback";
 
 // Componente Modal para mostrar imágenes ampliadas
 function ImageModal({ isOpen, imageUrl, onClose }: { isOpen: boolean; imageUrl: string; onClose: () => void }) {
@@ -276,19 +277,29 @@ export default function DetailPage() {
 
   // Componente para renderizar una imagen que se puede ampliar
   const ZoomableImage = ({ src, alt, className = "h-full w-full object-cover" }: { src: string; alt: string; className?: string }) => {
-    if (!src) return null;
+    if (!src) return (
+      <ImageWithFallback 
+        src="" 
+        alt={alt} 
+        className={className}
+        fallbackText="Imagem não enviada"
+      />
+    );
     
     return (
-      <img 
+      <ImageWithFallback 
         src={src} 
         alt={alt} 
-        className={`cursor-pointer ${className}`}
+        className={className}
         onClick={() => openImageModal(src)}
-        onError={handleImageError}
       />
     );
   };
 
+  // 🔧 DIAGNOSTICO DE IMÁGENES
+  console.log('[IMAGES-DEBUG] fileUrls available:', Object.keys(inspection.fileUrls || {}));
+  console.log('[IMAGES-DEBUG] Full fileUrls object:', JSON.stringify(inspection.fileUrls, null, 2));
+  
   // Extraer URLs de imágenes de fileUrls
   const videoUrl = inspection.fileUrls?.videoFileUrl || "";
   const crlvUrl = inspection.fileUrls?.crlvPhotoUrl || "";
@@ -302,6 +313,22 @@ export default function DetailPage() {
   const windshieldDamageUrl = inspection.fileUrls?.windshieldPhotoUrl || inspection.answers?.windshieldDamagePhotoUrl || "";
   const lightsDamageUrl = inspection.fileUrls?.lightsPhotoUrl || inspection.answers?.lightsDamagePhotoUrl || "";
   const tiresDamageUrl = inspection.fileUrls?.tiresPhotoUrl || inspection.answers?.tireDamagePhotoUrl || "";
+  
+  // Debug de URLs específicas
+  console.log('[IMAGES-DEBUG] Extracted URLs:', {
+    video: !!videoUrl,
+    crlv: !!crlvUrl,
+    frontal: !!frontalUrl,
+    trasera: !!traseraUrl,
+    lateralIzq: !!lateralIzqUrl,
+    lateralDer: !!lateralDerUrl,
+    interiorFrontal: !!interiorFrontalUrl,
+    interiorTrasero: !!interiorTraseroUrl,
+    safetyItems: !!safetyItemsUrl,
+    windshieldDamage: !!windshieldDamageUrl,
+    lightsDamage: !!lightsDamageUrl,
+    tiresDamage: !!tiresDamageUrl
+  });
   
   return (
     <div className="space-y-6 pb-10">
