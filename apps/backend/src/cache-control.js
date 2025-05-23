@@ -94,7 +94,8 @@ function setupCacheCleanup(cacheItems, intervalMinutes = 60) {
   }, intervalMinutes * 60 * 1000);
 }
 
-module.exports = {
+// Usar exportación ESM en lugar de CommonJS
+export {
   setupStaticCache,
   cacheApiResponse,
   setupCacheCleanup

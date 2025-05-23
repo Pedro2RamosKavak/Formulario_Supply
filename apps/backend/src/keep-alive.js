@@ -27,4 +27,4 @@ function setupKeepAlive(app) {
   }
 }
 
-module.exports = { setupKeepAlive }; 
+export { setupKeepAlive }; 

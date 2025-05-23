@@ -6,9 +6,7 @@ import { getUploadUrl, getReadUrl, putJson, getJson, listMetaKeys, deleteAllMeta
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { setupKeepAlive } from './keep-alive.js';
-
-// Importar sistema de caché (importa con require porque export usa module.exports)
-const { setupStaticCache, cacheApiResponse, setupCacheCleanup } = require('./cache-control.js');
+import { setupStaticCache, cacheApiResponse, setupCacheCleanup } from './cache-control.js';
 
 // Obtener el directorio actual en ESM
 const __filename = fileURLToPath(import.meta.url);
