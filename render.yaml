@@ -1,0 +1,16 @@
+# render.yaml
+services:
+  # Backend service
+  - type: web
+    name: vehicle-inspection-backend
+    env: node
+    buildCommand: npm install
+    startCommand: bash -c "ls -la && ls -la apps && ls -la apps/backend && cd apps/backend && npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: vehicle-inspection-backend
+          envVarKey: PORT 
