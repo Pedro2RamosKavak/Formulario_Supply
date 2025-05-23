@@ -736,60 +736,81 @@ apiRouter.get('/review/:id', async (req, res) => {
       rawFormDataName: meta.rawFormData ? meta.rawFormData.name : null
     }));
     
+    // 🔧 IMAGES FIX: Mejorar manejo de URLs de imágenes
+    console.log(`[DEBUG-IMAGES] Processing fileUrls for inspection ${id}`);
+    console.log(`[DEBUG-IMAGES] Original fileUrls:`, JSON.stringify(meta.fileUrls, null, 2));
+    console.log(`[DEBUG-IMAGES] isNewFormat: ${isNewFormat}`);
+    
     // Generate file URLs for preview
     if (meta.fileUrls) {
       // Process all URLs asynchronously
       const urlProcessingPromises = Object.keys(meta.fileUrls).map(async (key) => {
         const url = meta.fileUrls[key];
+        console.log(`[DEBUG-IMAGES] Processing ${key}: ${url}`);
+        
         // If URL is already a mock URL, leave it as is
-        if (url && url.includes('mock-file')) return;
+        if (url && url.includes('mock-file')) {
+          console.log(`[DEBUG-IMAGES] Skipping mock URL for ${key}`);
+          return;
+        }
+        
+        // Skip if URL is empty or null
+        if (!url) {
+          console.log(`[DEBUG-IMAGES] Empty URL for ${key}, skipping`);
+          return;
+        }
         
         try {
           // Si es nuevo formato, la URL es la clave directa de S3
           if (isNewFormat) {
             const s3Key = meta.fileUrls[key];
-            console.log(`[DEBUG] Generating signed URL for S3 key: ${s3Key}`);
+            console.log(`[DEBUG-IMAGES] New format - generating signed URL for S3 key: ${s3Key}`);
             try {
               // Generate a signed URL for the file
               const signedUrl = await getReadUrl(s3Key, 3600); // 1 hour expiration
               meta.fileUrls[key] = signedUrl;
+              console.log(`[DEBUG-IMAGES] Success - signed URL generated for ${key}`);
             } catch (signedUrlErr) {
-              console.error(`Error generating signed URL for ${s3Key}:`, signedUrlErr);
+              console.error(`[DEBUG-IMAGES] Error generating signed URL for ${s3Key}:`, signedUrlErr);
+              // Don't delete the URL, keep the original
             }
           } 
           // Para formato antiguo
           else {
-            // Get the file key from the URL (everything after last slash, before query params)
-            const filePath = url.split('/').pop().split('?')[0];
-            // For S3 URLs, we need to generate signed URLs
+            // Check if it's already a signed S3 URL
             if (url.includes('amazonaws.com')) {
               // Extract the S3 key from the URL
               const keyParts = url.split('amazonaws.com/');
               if (keyParts.length > 1) {
                 const s3Key = keyParts[1].split('?')[0]; // Remove query params
-                console.log(`[DEBUG] Generating signed URL for S3 key: ${s3Key}`);
+                console.log(`[DEBUG-IMAGES] Old format - regenerating signed URL for S3 key: ${s3Key}`);
                 try {
                   // Generate a signed URL for the file
                   const signedUrl = await getReadUrl(s3Key, 3600); // 1 hour expiration
                   meta.fileUrls[key] = signedUrl;
+                  console.log(`[DEBUG-IMAGES] Success - signed URL regenerated for ${key}`);
                 } catch (signedUrlErr) {
-                  console.error(`Error generating signed URL for ${s3Key}:`, signedUrlErr);
-                  // Fallback to the original URL if we can't generate a signed URL
+                  console.error(`[DEBUG-IMAGES] Error regenerating signed URL for ${s3Key}:`, signedUrlErr);
+                  // Keep the original URL as fallback
                 }
               }
             } else {
               // For local development, use mock URLs
+              const filePath = url.split('/').pop().split('?')[0];
               meta.fileUrls[key] = `/api/mock-file/${filePath}`;
+              console.log(`[DEBUG-IMAGES] Using mock URL for ${key}: ${meta.fileUrls[key]}`);
             }
           }
         } catch (urlErr) {
-          console.error(`Error processing URL for ${key}:`, urlErr);
+          console.error(`[DEBUG-IMAGES] Error processing URL for ${key}:`, urlErr);
         }
       });
       
       // Wait for all URL processing to complete
       await Promise.all(urlProcessingPromises);
     }
+    
+    console.log(`[DEBUG-IMAGES] Final processed fileUrls:`, JSON.stringify(meta.fileUrls, null, 2));
     
     res.json(meta);
   } catch (e) {
@@ -1055,6 +1076,75 @@ apiRouter.post('/zapier', async (req, res) => {
       message: "Error al procesar la solicitud", 
       error: error.message
     });
+  }
+});
+
+// 🧪 ENDPOINT DE TEST PARA IMÁGENES
+apiRouter.get('/test/images/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    console.log(`[TEST-IMAGES] Testing images for inspection ${id}`);
+    
+    // Get inspection data
+    const inspectionData = await getJson(`meta/${id}.json`);
+    
+    if (!inspectionData || !inspectionData.fileUrls) {
+      return res.json({ 
+        error: 'No fileUrls found',
+        data: inspectionData 
+      });
+    }
+    
+    // Test each image URL
+    const results = {};
+    for (const [key, url] of Object.entries(inspectionData.fileUrls)) {
+      console.log(`[TEST-IMAGES] Testing ${key}: ${url}`);
+      
+      try {
+        // Try to generate a new signed URL
+        let s3Key = null;
+        if (url.includes('amazonaws.com/')) {
+          const keyParts = url.split('amazonaws.com/');
+          if (keyParts.length > 1) {
+            s3Key = keyParts[1].split('?')[0];
+          }
+        }
+        
+        if (s3Key) {
+          const newSignedUrl = await getReadUrl(s3Key, 3600);
+          
+          // Test if the new URL is accessible
+          const response = await fetch(newSignedUrl, { method: 'HEAD' });
+          
+          results[key] = {
+            originalUrl: url,
+            s3Key: s3Key,
+            newSignedUrl: newSignedUrl,
+            accessible: response.ok,
+            status: response.status,
+            contentType: response.headers.get('content-type')
+          };
+        } else {
+          results[key] = {
+            originalUrl: url,
+            error: 'Could not extract S3 key'
+          };
+        }
+      } catch (error) {
+        results[key] = {
+          originalUrl: url,
+          error: error.message
+        };
+      }
+    }
+    
+    res.json({
+      inspectionId: id,
+      results: results
+    });
+  } catch (error) {
+    console.error('[TEST-IMAGES] Error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
