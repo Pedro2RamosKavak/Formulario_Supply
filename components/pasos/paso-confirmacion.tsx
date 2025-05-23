@@ -493,50 +493,55 @@ export default function PasoConfirmacion({
           
           {/* Mensaje informativo y barra de progreso movidos debajo de los botones */}
           {propEnviando && (
-            <div className="mt-8 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50">
-              <div className="container mx-auto">
-                <div className="flex items-center justify-center mb-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+            <>
+              {/* Overlay de pantalla completa */}
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"></div>
+              
+              <div className="mt-8 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50">
+                <div className="container mx-auto">
+                  <div className="flex items-center justify-center mb-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                      {success ? (
+                        <CheckCircle className="h-7 w-7 text-green-600" />
+                      ) : (
+                        <RefreshCw className="h-7 w-7 text-blue-600 animate-spin" />
+                      )}
+                    </div>
+                    <h3 className="text-xl font-bold text-blue-800">
+                      {success ? "Inspeção enviada com sucesso!" : "Enviando sua inspeção"}
+                    </h3>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <UploadProgressBar 
+                      currentStep={5} 
+                      totalSteps={5} 
+                      isUploading={isUploading} 
+                      uploadText={`${uploadingStage || "Processando"}...`}
+                      completeText="Dados enviados com sucesso!"
+                    />
+                  </div>
+                  
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
                     {success ? (
-                      <CheckCircle className="h-6 w-6 text-green-600" />
+                      <div className="text-green-600 font-medium text-lg">
+                        ✅ Os dados foram recebidos! Em breve enviaremos a pré-oferta.
+                      </div>
                     ) : (
-                      <RefreshCw className="h-6 w-6 text-blue-600 animate-spin" />
+                      <div className="text-blue-800">
+                        <p className="font-medium text-lg mb-2">🕒 {Math.round(progress)}% completo</p>
+                        <p className="text-sm text-gray-700 mb-1">
+                          Estamos processando suas imagens e enviando os dados.
+                        </p>
+                        <p className="text-sm text-gray-700">
+                          <strong>Por favor, não feche esta janela até que o processo seja concluído.</strong>
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <h3 className="text-lg font-bold text-blue-800">
-                    {success ? "Inspeção enviada com sucesso!" : "Enviando sua inspeção"}
-                  </h3>
-                </div>
-                
-                <div className="mb-3">
-                  <UploadProgressBar 
-                    currentStep={5} 
-                    totalSteps={5} 
-                    isUploading={isUploading} 
-                    uploadText={`${uploadingStage}...`}
-                    completeText="Dados enviados com sucesso!"
-                  />
-                </div>
-                
-                <div className="text-center">
-                  {success ? (
-                    <div className="text-green-600 font-medium">
-                      ✅ Os dados foram recebidos! Em breve enviaremos a pré-oferta.
-                    </div>
-                  ) : (
-                    <div className="text-blue-800 font-medium">
-                      🕒 {Math.round(progress)}% completo
-                      <p className="text-sm text-gray-600 mt-1">
-                        Os dados foram recebidos. As imagens serão processadas em segundo plano.
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Você já pode continuar, não é necessário esperar.
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </CardContent>
