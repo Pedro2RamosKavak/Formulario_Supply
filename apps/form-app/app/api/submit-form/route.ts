@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Región de S3
 const AWS_REGION = process.env.AWS_REGION || 'sa-east-1';
@@ -70,163 +69,180 @@ const s3 = hasRealCredentials ? new S3Client({
   },
 }) : null;
 
-// Generate mock URL for testing when we don't have real AWS credentials
-function generateMockUrl(objectKey: string): string {
-  return `http://localhost:3000/api/upload-mock?key=${encodeURIComponent(objectKey)}`;
+// Función para subir archivo a S3
+async function uploadFileToS3(fileBuffer: Buffer, objectKey: string, contentType: string): Promise<string> {
+  if (!hasRealCredentials || !s3) {
+    console.log(`[S3-INTEGRATION] Modo simulación - no se sube ${objectKey}`);
+    return `https://fake-s3-url.com/${objectKey}`;
+  }
+
+  try {
+    const command = new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: objectKey,
+      Body: fileBuffer,
+      ContentType: contentType,
+    });
+
+    await s3.send(command);
+    const s3Url = `https://${BUCKET}.s3.${AWS_REGION}.amazonaws.com/${objectKey}`;
+    console.log(`[S3-INTEGRATION] Archivo subido exitosamente: ${objectKey}`);
+    return s3Url;
+  } catch (error) {
+    console.error(`[S3-INTEGRATION] Error al subir ${objectKey}:`, error);
+    throw error;
+  }
 }
 
 export async function POST(request: NextRequest) {
   console.log("[S3-INTEGRATION] Recibida solicitud en /api/submit-form");
   
   try {
-    const data = await request.json();
-    console.log("[S3-INTEGRATION] Data recibida:", { 
-      type: Array.isArray(data.requiredFiles) ? 'URL request' : (data.id ? 'Data submission' : 'Unknown'),
-      requiredFiles: data.requiredFiles,
-      id: data.id 
-    });
+    // Verificar si es una petición con FormData (archivos)
+    const contentType = request.headers.get('content-type') || '';
     
-    // Etapa 1: Solicitud de presigned URLs
-    if (Array.isArray(data.requiredFiles)) {
-      console.log(`[S3-INTEGRATION] Procesando solicitud de URLs para ${data.requiredFiles.length} archivos`);
+    if (contentType.includes('multipart/form-data')) {
+      // Manejar subida de archivos
+      console.log("[S3-INTEGRATION] Procesando FormData con archivos");
       
-      // Generar un ID único para la inspección
+      const formData = await request.formData();
+      
+      // Generar ID único para la inspección
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substring(2, 10);
       const inspectionId = `insp_${timestamp}_${randomId}`;
+      
       console.log(`[S3-INTEGRATION] ID generado: ${inspectionId}`);
       
-      // Generar presigned URLs para cada archivo requerido
-      const uploadUrls: Record<string, string> = {};
+      // Extraer datos del formulario
+      const extractedData = {
+        id: inspectionId,
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        licensePlate: formData.get('licensePlate') as string,
+        mileage: formData.get('mileage') as string,
+        modelYear: formData.get('modelYear') as string,
+        hasChassisNumber: formData.get('hasChassisNumber') as string,
+        hasSecondKey: formData.get('hasSecondKey') as string,
+        conditions: JSON.parse(formData.get('conditions') as string || '[]'),
+        safetyItems: JSON.parse(formData.get('safetyItems') as string || '[]'),
+        acWorking: formData.get('acWorking') as string,
+        hasWindshieldDamage: formData.get('hasWindshieldDamage') as string,
+        hasLightsDamage: formData.get('hasLightsDamage') as string,
+        hasTireDamage: formData.get('hasTireDamage') as string,
+        isOriginalSoundSystem: formData.get('isOriginalSoundSystem') as string,
+      };
       
-      for (const key of data.requiredFiles) {
-        const ext = key === 'video' ? 'mp4' : 'jpg';
-        const objectKey = `inspections/${inspectionId}/${key}.${ext}`;
-        
-        try {
-          let url: string;
+      // Procesar archivos y subirlos a S3
+      const fileUrls: Record<string, string> = {};
+      
+      const fileFields = [
+        { key: 'crlv', ext: 'jpg', contentType: 'image/jpeg' },
+        { key: 'safetyItems', ext: 'jpg', contentType: 'image/jpeg' },
+        { key: 'windshieldDamagePhoto', ext: 'jpg', contentType: 'image/jpeg' },
+        { key: 'lightsDamagePhoto', ext: 'jpg', contentType: 'image/jpeg' },
+        { key: 'tireDamagePhoto', ext: 'jpg', contentType: 'image/jpeg' },
+        { key: 'video', ext: 'mp4', contentType: 'video/mp4' }
+      ];
+      
+      for (const field of fileFields) {
+        const file = formData.get(field.key) as File;
+        if (file && file.size > 0) {
+          console.log(`[S3-INTEGRATION] Procesando archivo ${field.key}: ${file.name} (${file.size} bytes)`);
           
-          if (hasRealCredentials && s3) {
-            // Generar presigned URL usando S3 real
-            const command = new PutObjectCommand({
-              Bucket: BUCKET,
-              Key: objectKey,
-              ContentType: key === 'video' ? 'video/mp4' : 'image/jpeg',
-            });
-            
-            url = await getSignedUrl(s3, command, { expiresIn: 600 });
-            console.log(`[S3-INTEGRATION] URL real generada para ${key}: ${url.substring(0, 60)}...`);
-          } else {
-            // Generar URL simulada para desarrollo
-            url = generateMockUrl(objectKey);
-            console.log(`[S3-INTEGRATION] URL simulada generada para ${key}: ${url}`);
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const objectKey = `inspections/${inspectionId}/${field.key}.${field.ext}`;
+          
+          try {
+            const s3Url = await uploadFileToS3(buffer, objectKey, field.contentType);
+            fileUrls[`${field.key}Url`] = s3Url;
+            console.log(`[S3-INTEGRATION] URL generada para ${field.key}: ${s3Url.substring(0, 60)}...`);
+          } catch (error) {
+            console.error(`[S3-INTEGRATION] Error al subir ${field.key}:`, error);
+            throw new Error(`Error al subir archivo ${field.key}`);
           }
-          
-          uploadUrls[key] = url;
-        } catch (error) {
-          console.error(`[S3-INTEGRATION] Error al generar URL para ${key}:`, error);
-          throw new Error(`No se pudo generar URL para ${key}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
         }
       }
       
-      return NextResponse.json({ 
-        id: inspectionId, 
-        uploadUrls,
-        message: "URLs generadas exitosamente",
-        mode: hasRealCredentials ? 'real' : 'simulation'
-      });
-    }
-
-    // Etapa 2: Guardar los datos finales de la inspección
-    if (data.id) {
-      console.log(`[S3-INTEGRATION] Guardando datos finales de inspección: ${data.id}`);
-      
-      // Para depuración, muestra las URLs recibidas
-      const receivedUrls = {
-        crlvUrl: data.crlvUrl ? '✓' : '✗',
-        safetyItemsUrl: data.safetyItemsUrl ? '✓' : '✗',
-        windshieldDamagePhotoUrl: data.windshieldDamagePhotoUrl ? '✓' : '✗',
-        lightsDamagePhotoUrl: data.lightsDamagePhotoUrl ? '✓' : '✗',
-        tireDamagePhotoUrl: data.tireDamagePhotoUrl ? '✓' : '✗',
-        videoUrl: data.videoUrl ? '✓' : '✗',
+      // Combinar datos del formulario con URLs de archivos
+      const completeData = {
+        ...extractedData,
+        ...fileUrls
       };
-      console.log("[S3-INTEGRATION] URLs recibidas:", receivedUrls);
       
-      const formData = {
-        inspectionId: data.id,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        licensePlate: data.licensePlate,
-        mileage: data.mileage,
-        modelYear: data.modelYear,
-        hasChassisNumber: data.hasChassisNumber === 'sim',
-        hasSecondKey: data.hasSecondKey === 'sim',
-        conditions: data.conditions,
-        safetyItems: data.safetyItems,
-        hasAirConditioner: data.acWorking === 'sim',
-        hasWindshieldDamage: data.hasWindshieldDamage === 'sim',
-        hasLightsDamage: data.hasLightsDamage === 'sim',
-        hasTiresDamage: data.hasTireDamage === 'sim',
-        hasOriginalSoundSystem: data.isOriginalSoundSystem === 'sim',
+      // Guardar metadatos en S3
+      const metadataObject = {
+        inspectionId: inspectionId,
+        name: extractedData.name,
+        email: extractedData.email,
+        phone: extractedData.phone,
+        licensePlate: extractedData.licensePlate,
+        mileage: extractedData.mileage,
+        modelYear: extractedData.modelYear,
+        hasChassisNumber: extractedData.hasChassisNumber === 'sim',
+        hasSecondKey: extractedData.hasSecondKey === 'sim',
+        conditions: extractedData.conditions,
+        safetyItems: extractedData.safetyItems,
+        hasAirConditioner: extractedData.acWorking === 'sim',
+        hasWindshieldDamage: extractedData.hasWindshieldDamage === 'sim',
+        hasLightsDamage: extractedData.hasLightsDamage === 'sim',
+        hasTiresDamage: extractedData.hasTireDamage === 'sim',
+        hasOriginalSoundSystem: extractedData.isOriginalSoundSystem === 'sim',
         // URLs de archivos S3
-        crlvFileUrl: data.crlvUrl,
-        safetyItemsFileUrl: data.safetyItemsUrl,
-        windshieldDamagePhotoUrl: data.windshieldDamagePhotoUrl,
-        lightsDamagePhotoUrl: data.lightsDamagePhotoUrl,
-        tireDamagePhotoUrl: data.tireDamagePhotoUrl,
-        videoFileUrl: data.videoUrl,
+        crlvFileUrl: fileUrls.crlvUrl,
+        safetyItemsFileUrl: fileUrls.safetyItemsUrl,
+        windshieldDamagePhotoUrl: fileUrls.windshieldDamagePhotoUrl,
+        lightsDamagePhotoUrl: fileUrls.lightsDamagePhotoUrl,
+        tireDamagePhotoUrl: fileUrls.tireDamagePhotoUrl,
+        videoFileUrl: fileUrls.videoUrl,
         // Metadatos completos para permitir la revisión detallada
-        rawFormData: data,
+        rawFormData: completeData,
         submissionDate: new Date().toISOString(),
         mode: hasRealCredentials ? 'real' : 'simulation',
         status: "pending"
       };
       
-      // Guardar los datos en S3 como un archivo JSON
+      // Guardar los metadatos en S3 como un archivo JSON
       if (hasRealCredentials && s3) {
         try {
-          console.log("[S3-INTEGRATION] Guardando datos en S3...");
+          console.log("[S3-INTEGRATION] Guardando metadatos en S3...");
           
-          // Convertir el objeto a JSON y luego a un Buffer
-          const formDataBuffer = Buffer.from(JSON.stringify(formData));
+          const metadataBuffer = Buffer.from(JSON.stringify(metadataObject));
+          await uploadFileToS3(metadataBuffer, `inspections/${inspectionId}/metadata.json`, 'application/json');
           
-          // Crear el comando para subir el archivo a S3
-          const command = new PutObjectCommand({
-            Bucket: BUCKET,
-            Key: `inspections/${data.id}/metadata.json`,
-            Body: formDataBuffer,
-            ContentType: 'application/json',
-          });
-          
-          // Enviar el comando a S3
-          await s3.send(command);
-          console.log("[S3-INTEGRATION] Datos guardados exitosamente en S3");
+          console.log("[S3-INTEGRATION] Metadatos guardados exitosamente en S3");
         } catch (error) {
-          console.error("[S3-INTEGRATION] Error al guardar datos en S3:", error);
-          throw new Error(`Error al guardar datos en S3: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+          console.error("[S3-INTEGRATION] Error al guardar metadatos en S3:", error);
+          throw new Error(`Error al guardar metadatos en S3: ${error instanceof Error ? error.message : 'Error desconocido'}`);
         }
       } else {
-        console.log("[S3-INTEGRATION] Modo simulación - no se guardan datos en S3");
+        console.log("[S3-INTEGRATION] Modo simulación - no se guardan metadatos en S3");
       }
       
       // Enviar datos completos a Zapier
-      await sendToZapier(formData, 'complete');
+      await sendToZapier(metadataObject, 'complete');
       
-      console.log("[S3-INTEGRATION] Datos guardados exitosamente");
+      console.log("[S3-INTEGRATION] Formulario procesado exitosamente");
       return NextResponse.json({ 
         success: true, 
         message: "Inspeção registrada com sucesso",
-        inspectionId: data.id,
+        inspectionId: inspectionId,
         mode: hasRealCredentials ? 'real' : 'simulation'
       });
     }
     
-    // Etapa 3: Envío de datos iniciales (primera pantalla)
-    if (data.formType === 'initial' && !Array.isArray(data.requiredFiles) && !data.id) {
+    // Manejar peticiones JSON (datos iniciales)
+    const data = await request.json();
+    console.log("[S3-INTEGRATION] Data recibida:", { 
+      formType: data.formType 
+    });
+    
+    // Envío de datos iniciales (primera pantalla)
+    if (data.formType === 'initial') {
       console.log("[S3-INTEGRATION] Recibidos datos iniciales de usuario");
       
-      // Datos iniciales ya vienen en el formato correcto, sin anidamiento
       const initialData = {
         email: data.email,
         name: data.name,

@@ -1729,103 +1729,69 @@ export default function Home() {
     try {
       setSubmitting(true);
       setSubmitError('');
-      console.log('[SUBMIT] Iniciando envío de formulario a S3');
+      console.log('[SUBMIT] Iniciando envío de formulario');
       
-      // Identificar los archivos que se deben enviar
-      const requiredFiles = [
-        'crlv',
-        ...(formData.safetyItems.length > 0 && !formData.safetyItems.includes('nenhum') ? ['safetyItems'] : []),
-        ...(formData.hasWindshieldDamage === 'sim' ? ['windshieldDamagePhoto'] : []),
-        ...(formData.hasLightsDamage === 'sim' ? ['lightsDamagePhoto'] : []),
-        ...(formData.hasTireDamage === 'sim' ? ['tireDamagePhoto'] : []),
-        'video'
+      // Crear FormData para enviar archivos al backend
+      const formDataToSubmit = new FormData();
+      
+      // Agregar todos los datos del formulario
+      formDataToSubmit.append('name', formData.name);
+      formDataToSubmit.append('email', formData.email);
+      formDataToSubmit.append('phone', formData.phone);
+      formDataToSubmit.append('licensePlate', formData.licensePlate);
+      formDataToSubmit.append('mileage', formData.mileage);
+      formDataToSubmit.append('modelYear', formData.modelYear);
+      formDataToSubmit.append('hasChassisNumber', formData.hasChassisNumber);
+      formDataToSubmit.append('hasSecondKey', formData.hasSecondKey);
+      formDataToSubmit.append('conditions', JSON.stringify(formData.conditions));
+      formDataToSubmit.append('safetyItems', JSON.stringify(formData.safetyItems));
+      formDataToSubmit.append('acWorking', formData.acWorking);
+      formDataToSubmit.append('hasWindshieldDamage', formData.hasWindshieldDamage);
+      formDataToSubmit.append('hasLightsDamage', formData.hasLightsDamage);
+      formDataToSubmit.append('hasTireDamage', formData.hasTireDamage);
+      formDataToSubmit.append('isOriginalSoundSystem', formData.isOriginalSoundSystem);
+      
+      // Agregar archivos al FormData
+      const fileFields = [
+        { key: 'crlv', required: true },
+        { key: 'safetyItems', required: formData.safetyItems.length > 0 && !formData.safetyItems.includes('nenhum') },
+        { key: 'windshieldDamagePhoto', required: formData.hasWindshieldDamage === 'sim' },
+        { key: 'lightsDamagePhoto', required: formData.hasLightsDamage === 'sim' },
+        { key: 'tireDamagePhoto', required: formData.hasTireDamage === 'sim' },
+        { key: 'video', required: true }
       ];
       
-      console.log('[SUBMIT] Archivos a subir:', requiredFiles);
+      let missingFiles = [];
       
-      // 1. Solicitar URLs presignadas para subir archivos
-      console.log('[SUBMIT] Solicitando URLs presignadas...');
-      const signedUrlsResponse = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ requiredFiles }),
-      });
-      
-      if (!signedUrlsResponse.ok) {
-        const errorData = await signedUrlsResponse.json();
-        throw new Error(errorData.error || 'Error al obtener URLs de S3');
-      }
-      
-      const signedUrlsData = await signedUrlsResponse.json();
-      console.log('[SUBMIT] URLs presignadas obtenidas:', Object.keys(signedUrlsData.uploadUrls));
-      const inspectionId = signedUrlsData.id;
-      
-      // 2. Subir cada archivo a S3 usando las URLs presignadas
-      const uploadPromises = [];
-      const s3Urls: Record<string, string> = {};
-      
-      for (const fileKey of requiredFiles) {
-        const file = uploadedFiles[fileKey];
-        const signedUrl = signedUrlsData.uploadUrls[fileKey];
-        
-        if (file && signedUrl) {
-          console.log(`[SUBMIT] Subiendo archivo ${fileKey} (${file.name}) a S3...`);
-          
-          // Crear promesa para subir el archivo
-          const uploadPromise = fetch(signedUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': fileKey === 'video' ? 'video/mp4' : 'image/jpeg',
-            },
-            body: file,
-          }).then(response => {
-            if (!response.ok) {
-              throw new Error(`Error al subir archivo ${fileKey}: ${response.status} ${response.statusText}`);
-            }
-            
-            // Extraer la URL del archivo en S3 de la respuesta o crearla a partir de signedUrl
-            const s3Url = signedUrl.split('?')[0]; // Quitar parámetros de query
-            s3Urls[`${fileKey}Url`] = s3Url;
-            console.log(`[SUBMIT] Archivo ${fileKey} subido correctamente a ${s3Url.substring(0, 60)}...`);
-            return s3Url;
-          });
-          
-          uploadPromises.push(uploadPromise);
-        } else {
-          console.warn(`[SUBMIT] No se encontró archivo para ${fileKey} o URL firmada`);
+      for (const field of fileFields) {
+        const file = uploadedFiles[field.key];
+        if (field.required && (!file || file.size === 0)) {
+          missingFiles.push(field.key);
+        } else if (file && file.size > 0) {
+          formDataToSubmit.append(field.key, file);
+          console.log(`[SUBMIT] Arquivo agregado: ${field.key} (${file.name}, ${file.size} bytes)`);
         }
       }
       
-      // Esperar a que se completen todas las subidas
-      console.log('[SUBMIT] Esperando a que se completen todas las subidas...');
-      await Promise.all(uploadPromises);
-      console.log('[SUBMIT] Todas las subidas completadas');
-      
-      // 3. Enviar datos del formulario junto con las URLs de los archivos
-      console.log('[SUBMIT] Enviando datos del formulario con las URLs de S3...');
-      const formPayload = {
-        id: inspectionId,
-        ...formData,
-        ...s3Urls
-      };
-      
-      const submitResponse = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formPayload),
-      });
-      
-      if (!submitResponse.ok) {
-        const errorData = await submitResponse.json();
-        throw new Error(errorData.error || 'Error al enviar datos del formulario');
+      if (missingFiles.length > 0) {
+        throw new Error(`Arquivos obrigatórios ausentes: ${missingFiles.join(', ')}`);
       }
       
-      const submitResult = await submitResponse.json();
-      console.log('[SUBMIT] Formulario enviado exitosamente:', submitResult);
+      console.log('[SUBMIT] Enviando formulário ao backend...');
+      
+      // Enviar el FormData al backend
+      const response = await fetch('/api/submit-form', {
+        method: 'POST',
+        body: formDataToSubmit,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al enviar el formulario');
+      }
+      
+      const result = await response.json();
+      console.log('[SUBMIT] Formulário enviado exitosamente:', result);
       
       // Actualizar la UI para mostrar éxito
       setFormSubmitted(true);
