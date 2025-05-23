@@ -69,6 +69,21 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 **/.env
+**/.env.*
+.env.example
+
+# AWS credentials
+**/aws-credentials.*
+**/aws-config.*
+*aws*key*
+*aws*secret*
+**/*credentials*
+**/*config*
+
+# Config files que pueden contener credenciales
+**/config.json
+**/settings.json
+setup-env.js
 
 # OS generated files
 .DS_Store
@@ -101,3 +116,13 @@ Thumbs.db
 **/prueba-*.js
 **/test-*.json
 **/test-*.md
+
+# Archivos de seguridad y credenciales
+**/*secret*
+**/*credential*
+**/*password*
+**/*token*
+**/*api_key*
+**/*apikey*
+**/*access_key*
+**/*accesskey*

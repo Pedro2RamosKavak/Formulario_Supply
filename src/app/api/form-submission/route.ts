@@ -3,10 +3,10 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 
 // Configuración de S3 con variables de entorno
-const AWS_REGION = process.env.AWS_REGION || 'sa-east-1';
+const AWS_REGION = process.env.AWS_REGION || 'your-region';
 const BUCKET = process.env.BUCKET || 'your-bucket-name';
-const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || 'YOUR_AWS_ACCESS_KEY_HERE';
-const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || 'YOUR_AWS_SECRET_HERE';
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || 'YOUR_ACCESS_KEY_PLACEHOLDER';
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || 'YOUR_SECRET_KEY_PLACEHOLDER';
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/api';
 
 console.log('[CONFIG] Inicializando cliente S3 con credenciales de entorno:');
