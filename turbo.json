@@ -1,10 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
-  "tasks": {
+  "pipeline": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["SKIP_TYPE_CHECK", "NODE_ENV", "NEXT_PUBLIC_*", "AWS_*", "BUCKET"]
     },
     "dev": {
       "cache": false,
@@ -13,9 +14,12 @@
       "env": ["NODE_ENV", "NEXT_PUBLIC_*", "AWS_*", "BUCKET"],
       "outputs": []
     },
-    "lint": {},
+    "lint": {
+      "outputs": []
+    },
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "outputs": []
     }
   }
 } 

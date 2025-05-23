@@ -27,6 +27,6 @@
       "continue": true
     }
   ],
-  "buildCommand": "chmod +x ./vercel-deploy-fix.sh && ./vercel-deploy-fix.sh",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "buildCommand": "npm run vercel-build"
 } 

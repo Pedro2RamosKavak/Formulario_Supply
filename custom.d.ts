@@ -1,0 +1,21 @@
+// Declaraciones de tipos globales para el proyecto
+declare module 'lucide-react';
+declare module '@radix-ui/*';
+declare module 'next-themes';
+declare module 'cloudinary';
+declare module 'sharp';
+declare module '@ffmpeg/ffmpeg';
+declare module '@ffmpeg/util';
+declare module 'browser-image-compression';
+declare module '@supabase/supabase-js';
+declare module 'cmdk';
+declare module 'embla-carousel-react';
+declare module 'recharts';
+declare module 'react-day-picker';
+declare module 'vaul';
+declare module 'sonner';
+declare module 'react-resizable-panels';
+declare module 'input-otp';
+declare module 'firebase/app';
+declare module 'firebase/storage';
+declare module 'firebase/firestore'; 

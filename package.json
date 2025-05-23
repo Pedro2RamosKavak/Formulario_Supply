@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "vercel-build": "chmod +x ./vercel-deploy-fix.sh && ./vercel-deploy-fix.sh",
     "lint": "turbo lint",
     "test": "turbo test",
     "backend:dev": "cd apps/backend && npm run dev",

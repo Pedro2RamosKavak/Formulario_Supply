@@ -1,0 +1,9 @@
+.git
+.github
+node_modules
+.next
+.vercel
+README.md
+README-Pruebas.md
+test-*
+prueba-* 
