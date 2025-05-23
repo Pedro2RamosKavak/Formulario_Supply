@@ -7,6 +7,9 @@ README.md
 README-Pruebas.md
 test-*
 prueba-*
+turbo.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
 !bypass-types.sh
 !prepare-vercel.sh
 !setup-deploy.sh 
