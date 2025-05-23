@@ -296,6 +296,220 @@ export default function Home() {
     return isValid;
   };
 
+  // Función para enviar datos iniciales al backend (Zapier integration)
+  const sendInitialData = async () => {
+    try {
+      console.log('[ZAPIER-INTEGRATION] Enviando datos iniciales...');
+      
+      const initialData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        licensePlate: formData.licensePlate,
+        mileage: formData.mileage,
+        modelYear: formData.modelYear,
+        formType: 'initial'
+      };
+      
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://formulario-supply-kavak.onrender.com';
+      
+      const response = await fetch(`${backendUrl}/api/zapier`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(initialData),
+      });
+      
+      if (response.ok) {
+        console.log('[ZAPIER-INTEGRATION] Datos iniciales enviados exitosamente');
+      } else {
+        console.warn('[ZAPIER-INTEGRATION] Error al enviar datos iniciales:', response.status);
+      }
+    } catch (error) {
+      console.warn('[ZAPIER-INTEGRATION] Error al enviar datos iniciales:', error);
+      // No interrumpimos el flujo si falla el envío inicial
+    }
+  };
+
+  // Función principal para enviar el formulario completo
+  const handleSubmit = async () => {
+    if (!validateCurrentStep()) {
+      setSubmitError('Por favor, complete todos los campos requeridos.');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError('');
+
+    try {
+      console.log('[SUBMIT] Iniciando envío del formulario...');
+
+      // Determinar qué archivos son requeridos basado en las respuestas
+      const requiredFiles = [
+        'crlvFile',
+        ...(formData.safetyItems.length > 0 && !formData.safetyItems.includes('nenhum') ? ['safetyItemsFile'] : []),
+        ...(formData.hasWindshieldDamage === 'sim' ? ['windshieldDamagePhoto'] : []),
+        ...(formData.hasLightsDamage === 'sim' ? ['lightsDamagePhoto'] : []),
+        ...(formData.hasTireDamage === 'sim' ? ['tireDamagePhoto'] : []),
+        'videoFile'
+      ];
+
+      console.log('[SUBMIT] Archivos requeridos:', requiredFiles);
+
+      // Mapeo de nombres de archivos
+      const fileMapping: Record<string, string> = {
+        crlvFile: 'crlv',
+        safetyItemsFile: 'safetyItems',
+        windshieldDamagePhoto: 'windshieldDamagePhoto',
+        lightsDamagePhoto: 'lightsDamagePhoto',
+        tireDamagePhoto: 'tireDamagePhoto',
+        videoFile: 'video'
+      };
+
+      // 1. Obtener URLs pre-firmadas del backend
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://formulario-supply-kavak.onrender.com';
+      
+      const signedUrlsResponse = await fetch(`${backendUrl}/api/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: formData.email,
+          requiredFiles 
+        }),
+      });
+      
+      if (!signedUrlsResponse.ok) {
+        const errorData = await signedUrlsResponse.json();
+        throw new Error(errorData.error || 'Error al obtener URLs del backend');
+      }
+      
+      const signedUrlsData = await signedUrlsResponse.json();
+      console.log('[SUBMIT] URLs pre-firmadas obtenidas:', Object.keys(signedUrlsData.uploadUrls));
+      const inspectionId = signedUrlsData.id;
+      
+      // 2. Subir cada archivo usando las URLs pre-firmadas
+      const uploadPromises = [];
+      const s3Urls: Record<string, string> = {};
+      
+      for (const fileKey of requiredFiles) {
+        const localFileKey = fileMapping[fileKey];
+        const file = uploadedFiles[localFileKey];
+        const signedUrl = signedUrlsData.uploadUrls[fileKey];
+        
+        if (file && signedUrl) {
+          console.log(`[SUBMIT] Subiendo archivo ${fileKey} (${file.name}) para S3...`);
+          
+          // Crear promesa para subir el archivo
+          const uploadPromise = fetch(signedUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': fileKey === 'videoFile' ? 'video/mp4' : 'image/jpeg',
+            },
+            body: file,
+          }).then(response => {
+            if (!response.ok) {
+              throw new Error(`Error al subir archivo ${fileKey}: ${response.status} ${response.statusText}`);
+            }
+            
+            // Extraer la URL del archivo en S3 de la respuesta
+            const s3Url = signedUrl.split('?')[0]; // Quitar parámetros de query
+            s3Urls[`${fileKey}Url`] = s3Url;
+            console.log(`[SUBMIT] Archivo ${fileKey} subido correctamente para ${s3Url.substring(0, 60)}...`);
+            return s3Url;
+          });
+          
+          uploadPromises.push(uploadPromise);
+        } else {
+          console.warn(`[SUBMIT] No se encontró archivo para ${fileKey} o URL firmada`);
+        }
+      }
+      
+      // Esperar a que se completen todas las subidas
+      console.log('[SUBMIT] Esperando que se completen todas las subidas...');
+      await Promise.all(uploadPromises);
+      console.log('[SUBMIT] Todas las subidas completadas');
+      
+      // 3. Enviar datos finales al backend Express.js
+      console.log('[SUBMIT] Enviando datos finales al backend...');
+      const finalPayload = {
+        id: inspectionId,
+        email: formData.email,
+        ownerName: formData.name,
+        contactPhone: formData.phone,
+        licensePlate: formData.licensePlate,
+        currentKm: formData.mileage,
+        modelYear: formData.modelYear,
+        hasChassisNumber: formData.hasChassisNumber,
+        hasSecondKey: formData.hasSecondKey,
+        vehicleConditions: formData.conditions,
+        safetyItems: formData.safetyItems,
+        acWorking: formData.acWorking,
+        hasWindshieldDamage: formData.hasWindshieldDamage,
+        hasLightsDamage: formData.hasLightsDamage,
+        hasTiresDamage: formData.hasTireDamage,
+        hasOriginalSoundSystem: formData.isOriginalSoundSystem,
+        ...s3Urls
+      };
+      
+      const submitResponse = await fetch(`${backendUrl}/api/submit/final`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalPayload),
+      });
+      
+      if (!submitResponse.ok) {
+        const errorData = await submitResponse.json();
+        throw new Error(errorData.error || 'Error al enviar datos finales');
+      }
+      
+      const submitResult = await submitResponse.json();
+      console.log('[SUBMIT] Formulario enviado exitosamente:', submitResult);
+      
+      // Actualizar la UI para mostrar éxito
+      setFormSubmitted(true);
+      setCurrentStep(7);
+      
+      // Limpiar localStorage
+      localStorage.removeItem('currentStep');
+      localStorage.removeItem('formData');
+      window.scrollTo(0, 0);
+    } catch (error: any) {
+      console.error("[ERROR] Error al enviar el formulario:", error);
+      setSubmitError(error.message || 'Ocorreu um erro ao enviar o formulário. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Función para ir al paso anterior
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  // Función para ir al paso siguiente
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      // Solo validamos si no estamos en el paso de introducción
+      if (currentStep === 1 || validateCurrentStep()) {
+        // Si estamos pasando del paso 2 al 3, enviar datos iniciales a la API
+        if (currentStep === 2) {
+          sendInitialData();
+        }
+        
+        setCurrentStep(currentStep + 1);
+        window.scrollTo(0, 0);
+      }
+    }
+  };
+
   const renderFormStep = () => {
     switch(currentStep) {
       case 1:
@@ -1665,150 +1879,6 @@ export default function Home() {
     }
   };
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      // Solo validamos si no estamos en el paso de introducción o confirmación
-      if (currentStep === 1 || currentStep === 6 || validateCurrentStep()) {
-        // Si estamos pasando del paso 2 al 3, enviar datos iniciales a la API
-        if (currentStep === 2) {
-          sendInitialData();
-        }
-        
-        setCurrentStep(currentStep + 1);
-        window.scrollTo(0, 0);
-      }
-    }
-  };
-
-  // Función para enviar datos iniciales al backend
-  const sendInitialData = async () => {
-    try {
-      console.log('[ZAPIER-INTEGRATION] Enviando datos iniciales...');
-      
-      // Enviar datos personales básicos en el mismo formato que el formulario completo
-      const initialData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        licensePlate: formData.licensePlate,
-        mileage: formData.mileage,
-        modelYear: formData.modelYear,
-        // Indicador de que es un envío inicial
-        formType: 'initial'
-      };
-      
-      const response = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(initialData),
-      });
-      
-      if (!response.ok) {
-        console.error('[ZAPIER-INTEGRATION] Error al enviar datos iniciales:', response.status);
-        return; // Continuar aunque falle, es solo para tracking
-      }
-      
-      const result = await response.json();
-      console.log('[ZAPIER-INTEGRATION] Respuesta de datos iniciales:', result);
-    } catch (error) {
-      console.error('[ZAPIER-INTEGRATION] Error al enviar datos iniciales:', error);
-      // No mostrar error al usuario, continuar normalmente
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setSubmitting(true);
-      setSubmitError('');
-      console.log('[SUBMIT] Iniciando envío de formulario');
-      
-      // Crear FormData para enviar archivos al backend
-      const formDataToSubmit = new FormData();
-      
-      // Agregar todos los datos del formulario
-      formDataToSubmit.append('name', formData.name);
-      formDataToSubmit.append('email', formData.email);
-      formDataToSubmit.append('phone', formData.phone);
-      formDataToSubmit.append('licensePlate', formData.licensePlate);
-      formDataToSubmit.append('mileage', formData.mileage);
-      formDataToSubmit.append('modelYear', formData.modelYear);
-      formDataToSubmit.append('hasChassisNumber', formData.hasChassisNumber);
-      formDataToSubmit.append('hasSecondKey', formData.hasSecondKey);
-      formDataToSubmit.append('conditions', JSON.stringify(formData.conditions));
-      formDataToSubmit.append('safetyItems', JSON.stringify(formData.safetyItems));
-      formDataToSubmit.append('acWorking', formData.acWorking);
-      formDataToSubmit.append('hasWindshieldDamage', formData.hasWindshieldDamage);
-      formDataToSubmit.append('hasLightsDamage', formData.hasLightsDamage);
-      formDataToSubmit.append('hasTireDamage', formData.hasTireDamage);
-      formDataToSubmit.append('isOriginalSoundSystem', formData.isOriginalSoundSystem);
-      
-      // Agregar archivos al FormData
-      const fileFields = [
-        { key: 'crlv', required: true },
-        { key: 'safetyItems', required: formData.safetyItems.length > 0 && !formData.safetyItems.includes('nenhum') },
-        { key: 'windshieldDamagePhoto', required: formData.hasWindshieldDamage === 'sim' },
-        { key: 'lightsDamagePhoto', required: formData.hasLightsDamage === 'sim' },
-        { key: 'tireDamagePhoto', required: formData.hasTireDamage === 'sim' },
-        { key: 'video', required: true }
-      ];
-      
-      let missingFiles = [];
-      
-      for (const field of fileFields) {
-        const file = uploadedFiles[field.key];
-        if (field.required && (!file || file.size === 0)) {
-          missingFiles.push(field.key);
-        } else if (file && file.size > 0) {
-          formDataToSubmit.append(field.key, file);
-          console.log(`[SUBMIT] Arquivo agregado: ${field.key} (${file.name}, ${file.size} bytes)`);
-        }
-      }
-      
-      if (missingFiles.length > 0) {
-        throw new Error(`Arquivos obrigatórios ausentes: ${missingFiles.join(', ')}`);
-      }
-      
-      console.log('[SUBMIT] Enviando formulário ao backend...');
-      
-      // Enviar el FormData al backend
-      const response = await fetch('/api/submit-form', {
-        method: 'POST',
-        body: formDataToSubmit,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al enviar el formulario');
-      }
-      
-      const result = await response.json();
-      console.log('[SUBMIT] Formulário enviado exitosamente:', result);
-      
-      // Actualizar la UI para mostrar éxito
-      setFormSubmitted(true);
-      setCurrentStep(7);
-      
-      // Limpiar localStorage
-      localStorage.removeItem('currentStep');
-      localStorage.removeItem('formData');
-      window.scrollTo(0, 0);
-    } catch (error: any) {
-      console.error("[ERROR] Error al enviar el formulario:", error);
-      setSubmitError(error.message || 'Ocorreu um erro ao enviar o formulário. Tente novamente.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto py-8 px-4 max-w-3xl">
@@ -1851,8 +1921,8 @@ export default function Home() {
         <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6">
           {renderFormStep()}
 
-          {/* Mostrar botones de navegación solo en pasos 1-6, no en la pantalla final */}
-          {currentStep < 7 && currentStep !== 6 && (
+          {/* Mostrar botones de navegación en pasos 1-5, no en el paso 6 (confirmación) ni en el 7 (final) */}
+          {currentStep >= 1 && currentStep <= 5 && (
             <div className="mt-8 flex justify-between">
               {currentStep > 1 && (
                 <button
@@ -1873,6 +1943,19 @@ export default function Home() {
                   <span className="ml-2">→</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Mostrar solo el botón "Voltar" en el paso 6 (confirmación) */}
+          {currentStep === 6 && (
+            <div className="mt-8">
+              <button
+                className="border border-gray-300 bg-white text-gray-700 font-medium py-2.5 px-5 rounded-md transition-all duration-200 hover:bg-gray-50 flex items-center"
+                onClick={handlePrevious}
+              >
+                <span className="mr-2">←</span>
+                Voltar
+              </button>
             </div>
           )}
         </div>
