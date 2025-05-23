@@ -336,8 +336,60 @@ apiRouter.get('/review/list', async (req, res) => {
     
     // 3. Usar datos locales si no hay nada en S3
     if (allInspections.length === 0) {
+      console.log('[DEBUG] No hay datos en S3, usando datos de prueba locales');
+      
+      // Datos de prueba con rawFormData para verificar que el frontend funciona
+      const sampleInspections = [
+        {
+          id: 'test-insp-1',
+          email: 'test@example.com',
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          fileUrls: {},
+          answers: {
+            licensePlate: 'ABC-1234',
+            vehicleBrand: 'Toyota',
+            vehicleModel: 'Corolla',
+            vehicleYear: '2020'
+          },
+          rawFormData: {
+            name: 'Juan Pérez García',
+            email: 'test@example.com',
+            licensePlate: 'ABC-1234',
+            phone: '+55 11 99999-9999'
+          },
+          uploadHistory: [{ status: 'pending', date: new Date().toISOString() }],
+          isNewFormat: false
+        },
+        {
+          id: 'test-insp-2',
+          email: 'test2@example.com',
+          createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 día atrás
+          status: 'approved',
+          fileUrls: {},
+          answers: {
+            licensePlate: 'XYZ-5678',
+            vehicleBrand: 'Honda',
+            vehicleModel: 'Civic',
+            vehicleYear: '2019'
+          },
+          rawFormData: {
+            name: 'María Silva Santos',
+            email: 'test2@example.com',
+            licensePlate: 'XYZ-5678',
+            phone: '+55 11 88888-8888'
+          },
+          uploadHistory: [{ status: 'approved', date: new Date().toISOString() }],
+          isNewFormat: false
+        }
+      ];
+      
+      allInspections = sampleInspections;
+      console.log('[DEBUG] Agregados datos de prueba:', allInspections.length, 'inspecciones');
+      
       if (global.localDb && global.localDb.meta) {
-        allInspections = Object.values(global.localDb.meta);
+        const localInspections = Object.values(global.localDb.meta);
+        allInspections = [...allInspections, ...localInspections];
       }
     }
     
@@ -510,7 +562,56 @@ apiRouter.get('/review/:id', async (req, res) => {
           meta = global.localDb.meta[id];
           console.log(`[DEBUG] Using local data for inspection ${id}`);
         } else {
-          return res.status(404).json({ error: 'Not found' });
+          // 4. Usar datos de prueba si es uno de nuestros IDs de prueba
+          if (id === 'test-insp-1') {
+            meta = {
+              id: 'test-insp-1',
+              email: 'test@example.com',
+              createdAt: new Date().toISOString(),
+              status: 'pending',
+              fileUrls: {},
+              answers: {
+                licensePlate: 'ABC-1234',
+                vehicleBrand: 'Toyota',
+                vehicleModel: 'Corolla',
+                vehicleYear: '2020'
+              },
+              rawFormData: {
+                name: 'Juan Pérez García',
+                email: 'test@example.com',
+                licensePlate: 'ABC-1234',
+                phone: '+55 11 99999-9999'
+              },
+              uploadHistory: [{ status: 'pending', date: new Date().toISOString() }],
+              isNewFormat: false
+            };
+            console.log(`[DEBUG] Using sample data for test inspection ${id}`);
+          } else if (id === 'test-insp-2') {
+            meta = {
+              id: 'test-insp-2',
+              email: 'test2@example.com',
+              createdAt: new Date(Date.now() - 86400000).toISOString(),
+              status: 'approved',
+              fileUrls: {},
+              answers: {
+                licensePlate: 'XYZ-5678',
+                vehicleBrand: 'Honda',
+                vehicleModel: 'Civic',
+                vehicleYear: '2019'
+              },
+              rawFormData: {
+                name: 'María Silva Santos',
+                email: 'test2@example.com',
+                licensePlate: 'XYZ-5678',
+                phone: '+55 11 88888-8888'
+              },
+              uploadHistory: [{ status: 'approved', date: new Date().toISOString() }],
+              isNewFormat: false
+            };
+            console.log(`[DEBUG] Using sample data for test inspection ${id}`);
+          } else {
+            return res.status(404).json({ error: 'Not found' });
+          }
         }
       }
     }

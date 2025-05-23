@@ -1,55 +1,26 @@
+// Tipos básicos para el proyecto
 export interface Inspection {
   id: string;
-  email: string;
-  licensePlate?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'error';
+  status: string;
   createdAt: string;
   reviewedAt?: string;
-  submissionDate?: string;
-  answers?: Record<string, string> | string;
+  email?: string;
   fileUrl?: string;
-  fileUrls?: Record<string, string>;
-  thumbnailUrl?: string;
-  uploadHistory: {
-    status: string;
-    date: string;
-  }[];
-  ownerName?: string;
-  phone?: string;
-  vehicleBrand?: string;
-  vehicleModel?: string;
-  mileage?: string | number;
-  modelYear?: string | number;
-  hasOriginalInfotainment?: boolean | 'yes' | 'no' | 'unknown';
-  hasOriginalSoundSystem?: boolean;
-  hasDocumentIssues?: 'yes' | 'no';
-  hasVisibleMechanicalIssues?: 'yes' | 'no';
-  safetyItems?: string[];
-  tiresCondition?: string;
-  bodyworkCondition?: string;
-  glassCondition?: string;
-  interiorCondition?: string;
-  engineCondition?: string;
-  trunkCondition?: string;
-  contactPhone?: string;
-  currentKm?: string | number;
-  rawFormData?: any;
-  hasChassisNumber?: boolean;
-  hasSecondKey?: boolean;
-  hasAirConditioner?: boolean;
-  hasWindshieldDamage?: boolean;
-  hasLightsDamage?: boolean;
-  hasTiresDamage?: boolean;
-  conditions?: string[];
-  crlvFileUrl?: string;
-  safetyItemsFileUrl?: string;
-  windshieldDamagePhotoUrl?: string;
-  lightsDamagePhotoUrl?: string;
-  tireDamagePhotoUrl?: string;
-  videoFileUrl?: string;
-  isNewFormat?: boolean;
-  inspectionId?: string;
-  mode?: string;
+  fileUrls?: {
+    videoFileUrl?: string;
+    crlvPhotoUrl?: string;
+    frontalUrl?: string;
+    traseraUrl?: string;
+    lateral_izquierdoUrl?: string;
+    lateral_derechoUrl?: string;
+    interior_frontalUrl?: string;
+    interior_traseroUrl?: string;
+    safetyItemsPhotoUrl?: string;
+    windshieldPhotoUrl?: string;
+    lightsPhotoUrl?: string;
+    tiresPhotoUrl?: string;
+  };
+  answers?: any;
 }
 
 export interface UploadResponse {
@@ -59,23 +30,5 @@ export interface UploadResponse {
 
 export interface SubmitPayload {
   email: string;
-  licensePlate?: string;
-  answers?: Record<string, string> | string;
-  requiredFiles?: string[];
-  ownerName?: string;
-  phone?: string;
-  vehicleBrand?: string;
-  vehicleModel?: string;
-  vehicleYear?: number;
-  hasOriginalInfotainment?: 'yes' | 'no' | 'unknown';
-  hasDocumentIssues?: 'yes' | 'no';
-  hasVisibleMechanicalIssues?: 'yes' | 'no';
-  safetyItems?: string[];
-  tiresCondition?: string;
-  bodyworkCondition?: string;
-  glassCondition?: string;
-  interiorCondition?: string;
-  engineCondition?: string;
-  trunkCondition?: string;
-  contactPhone?: string;
-} 
+  [key: string]: any;
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "../../../../../packages/ui";
-import { Inspection } from "../../../../../packages/types";
+import type { Inspection } from "../../../../../packages/types/index";
 
 // Componente Modal para mostrar imágenes ampliadas
 function ImageModal({ isOpen, imageUrl, onClose }: { isOpen: boolean; imageUrl: string; onClose: () => void }) {

@@ -8,4 +8,5 @@ README-Pruebas.md
 test-*
 prueba-*
 !bypass-types.sh
-!prepare-vercel.sh 
+!prepare-vercel.sh
+!setup-deploy.sh 

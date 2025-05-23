@@ -18,4 +18,4 @@ declare module 'react-resizable-panels';
 declare module 'input-otp';
 declare module 'firebase/app';
 declare module 'firebase/storage';
-declare module 'firebase/firestore'; 
+declare module 'firebase/firestore';
