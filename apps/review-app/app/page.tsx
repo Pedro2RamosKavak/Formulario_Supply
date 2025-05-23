@@ -309,16 +309,26 @@ export default function Home() {
               {filteredInspections.map((inspection) => (
                 <TableRow key={inspection.id}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">
-                        {inspection.rawFormData?.name || inspection.answers?.ownerName || inspection.ownerName || inspection.name || 'Sem nome'}
+                    <div className="max-w-[200px]">
+                      <p className="font-medium truncate" title={inspection.rawFormData?.name || inspection.answers?.ownerName || inspection.ownerName || inspection.name || 'Sem nome'}>
+                        {(inspection.rawFormData?.name || inspection.answers?.ownerName || inspection.ownerName || inspection.name || 'Sem nome').length > 30 
+                          ? `${(inspection.rawFormData?.name || inspection.answers?.ownerName || inspection.ownerName || inspection.name || 'Sem nome').substring(0, 30)}...`
+                          : (inspection.rawFormData?.name || inspection.answers?.ownerName || inspection.ownerName || inspection.name || 'Sem nome')
+                        }
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {inspection.rawFormData?.email || inspection.answers?.email || inspection.email || 'N/A'}
+                      <p className="text-xs text-gray-500 truncate" title={inspection.rawFormData?.email || inspection.answers?.email || inspection.email || 'N/A'}>
+                        {(inspection.rawFormData?.email || inspection.answers?.email || inspection.email || 'N/A').length > 25 
+                          ? `${(inspection.rawFormData?.email || inspection.answers?.email || inspection.email || 'N/A').substring(0, 25)}...`
+                          : (inspection.rawFormData?.email || inspection.answers?.email || inspection.email || 'N/A')
+                        }
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>{inspection.rawFormData?.licensePlate || inspection.answers?.licensePlate || inspection.licensePlate || 'N/A'}</TableCell>
+                  <TableCell className="max-w-[120px]">
+                    <span className="truncate block" title={inspection.rawFormData?.licensePlate || inspection.answers?.licensePlate || inspection.licensePlate || 'N/A'}>
+                      {inspection.rawFormData?.licensePlate || inspection.answers?.licensePlate || inspection.licensePlate || 'N/A'}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${

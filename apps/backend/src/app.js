@@ -233,11 +233,42 @@ apiRouter.post('/submit/final', async (req, res) => {
     try {
       console.log('[ZAPIER-INTEGRATION] Enviando datos completos...');
       
+      // Crear payload limpio para Zapier con campos específicos
       const zapierPayload = {
-        ...formData,
+        // Campos principales (mapeo correcto)
+        id: formData.id,
+        name: formData.ownerName, // 🔧 FIX: Mapear ownerName → name para Zapier
+        email: formData.email,
+        phone: formData.phone,
+        licensePlate: formData.licensePlate,
+        
+        // Información del vehículo
+        vehicleBrand: formData.vehicleBrand,
+        vehicleModel: formData.vehicleModel,
+        vehicleYear: formData.vehicleYear,
+        currentKm: formData.currentKm,
+        
+        // Condiciones del vehículo (simplificado)
+        hasOriginalInfotainment: formData.hasOriginalInfotainment,
+        hasDocumentIssues: formData.hasDocumentIssues,
+        hasVisibleMechanicalIssues: formData.hasVisibleMechanicalIssues,
+        tiresCondition: formData.tiresCondition,
+        glassCondition: formData.glassCondition,
+        
+        // Items de seguridad (como string)
+        safetyItems: Array.isArray(formData.safetyItems) 
+          ? formData.safetyItems.join(', ') 
+          : formData.safetyItems || '',
+        
+        // URLs de archivos (solo las principales)
+        crlvPhotoUrl: formData.fileUrls?.crlvPhotoUrl || '',
+        videoFileUrl: formData.fileUrls?.videoFileUrl || '',
+        
+        // Metadata de Zapier
         formType: 'complete',
         submission_type: 'complete',
         step: 'Complete',
+        status: formData.status,
         submission_date: new Date().toISOString(),
         formatted_date: new Date().toLocaleDateString('pt-BR', {
           day: '2-digit',
@@ -248,11 +279,6 @@ apiRouter.post('/submit/final', async (req, res) => {
           second: '2-digit'
         })
       };
-
-      // Convertir arrays a strings para Zapier
-      if (Array.isArray(zapierPayload.safetyItems)) {
-        zapierPayload.safetyItems = zapierPayload.safetyItems.join(', ');
-      }
 
       const ZAPIER_WEBHOOK_URL = process.env.ZAPIER_WEBHOOK_URL || "https://hooks.zapier.com/hooks/catch/10702199/275d6f8/";
       
