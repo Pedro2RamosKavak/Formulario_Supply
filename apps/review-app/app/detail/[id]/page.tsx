@@ -74,6 +74,13 @@ const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
   e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'%3E%3C/circle%3E%3Cpolyline points='21 15 16 10 5 21'%3E%3C/polyline%3E%3C/svg%3E";
 };
 
+// Utilidad para mostrar valores booleanos o 'sim'/'nao' como texto amigable
+function renderBoolean(val: any) {
+  if (val === true || val === 'sim') return 'Sim';
+  if (val === false || val === 'nao') return 'Não';
+  return 'Não especificado';
+}
+
 export default function DetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -299,7 +306,7 @@ export default function DetailPage() {
   // 🔧 DIAGNOSTICO DE IMÁGENES
   console.log('[IMAGES-DEBUG] fileUrls available:', Object.keys(inspection.fileUrls || {}));
   console.log('[IMAGES-DEBUG] Full fileUrls object:', JSON.stringify(inspection.fileUrls, null, 2));
-  
+
   // Extraer URLs de imágenes de fileUrls
   const videoUrl = inspection.fileUrls?.videoFileUrl || "";
   const crlvUrl = inspection.fileUrls?.crlvPhotoUrl || "";
@@ -370,7 +377,7 @@ export default function DetailPage() {
             
             <div>
               <p className="text-sm text-gray-500">Telefone</p>
-              <p>{inspection.rawFormData?.phone || inspection.answers?.phone || 'Não especificado'}</p>
+              <p>{inspection.answers?.contactPhone || inspection.rawFormData?.phone || inspection.phone || 'Não especificado'}</p>
             </div>
             
             <div>
@@ -380,25 +387,25 @@ export default function DetailPage() {
             
             <div>
               <p className="text-sm text-gray-500">Ano do modelo</p>
-              <p>{(inspection.rawFormData && inspection.rawFormData.modelYear) || inspection.answers?.modelYear || 'Não especificado'}</p>
+              <p>{inspection.answers?.modelYear || inspection.rawFormData?.modelYear || inspection.modelYear || 'Não especificado'}</p>
             </div>
             
             <div>
               <p className="text-sm text-gray-500">Quilometragem</p>
-              <p>{(inspection.rawFormData && inspection.rawFormData.mileage) || inspection.answers?.mileage || 'Não especificado'} {(inspection.rawFormData && inspection.rawFormData.mileage) || inspection.answers?.mileage ? 'km' : ''}</p>
+              <p>{inspection.answers?.currentKm || inspection.rawFormData?.currentKm || 'Não especificado'}{(inspection.answers?.currentKm || inspection.rawFormData?.currentKm) ? ' km' : ''}</p>
             </div>
             
             <div>
               <p className="text-sm text-gray-500">Tem número de chassi visível</p>
-              <p className={(inspection.answers?.hasChassisNumber === true || inspection.rawFormData?.hasChassisNumber === 'sim') ? "text-green-600" : "text-red-600"}>
-                {(inspection.answers?.hasChassisNumber === true || inspection.rawFormData?.hasChassisNumber === 'sim') ? "Sim" : "Não"}
+              <p className={renderBoolean(inspection.answers?.hasChassisNumber || inspection.rawFormData?.hasChassisNumber) === 'Sim' ? "text-green-600" : "text-red-600"}>
+                {renderBoolean(inspection.answers?.hasChassisNumber || inspection.rawFormData?.hasChassisNumber)}
               </p>
             </div>
             
             <div>
               <p className="text-sm text-gray-500">Tem chave secundária</p>
-              <p className={(inspection.answers?.hasSecondKey === true || inspection.rawFormData?.hasSecondKey === 'sim') ? "text-green-600" : "text-red-600"}>
-                {(inspection.answers?.hasSecondKey === true || inspection.rawFormData?.hasSecondKey === 'sim') ? "Sim" : "Não"}
+              <p className={renderBoolean(inspection.answers?.hasSecondKey || inspection.rawFormData?.hasSecondKey) === 'Sim' ? "text-green-600" : "text-red-600"}>
+                {renderBoolean(inspection.answers?.hasSecondKey || inspection.rawFormData?.hasSecondKey)}
               </p>
             </div>
           </div>
