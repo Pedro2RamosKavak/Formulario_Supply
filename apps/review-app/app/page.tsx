@@ -52,6 +52,20 @@ export default function Home() {
     year: ''
   });
 
+  const [limit, setLimit] = useState(5); // Opciones: 5, 10, 20, 50, 100
+  const [page, setPage] = useState(1);
+
+  // Calcular datos paginados
+  const total = filteredInspections.length;
+  const startIdx = (page - 1) * limit;
+  const endIdx = Math.min(page * limit, total);
+  const paginatedInspections = filteredInspections.slice(startIdx, endIdx);
+
+  // Resetear página si cambia el filtro o el límite
+  useEffect(() => {
+    setPage(1);
+  }, [limit, statusFilter, searchTerm, dateFilter]);
+
   // Función para obtener datos del servidor
   const fetchInspections = async (forceRefresh = false) => {
     try {
@@ -306,7 +320,7 @@ export default function Home() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInspections.map((inspection) => (
+              {paginatedInspections.map((inspection) => (
                 <TableRow key={inspection.id}>
                   <TableCell>
                     <div className="max-w-[200px]">
@@ -364,6 +378,38 @@ export default function Home() {
               ))}
             </TableBody>
           </Table>
+          {/* Paginación */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 border-t bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span>Límite</span>
+              <select
+                className="border rounded px-2 py-1"
+                value={limit}
+                onChange={e => setLimit(Number(e.target.value))}
+              >
+                {[5, 10, 20, 50, 100].map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="text-sm text-gray-600">
+              {total === 0 ? '0 registros' : `${startIdx + 1} a ${endIdx} de ${total} registros`}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >Anterior</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={endIdx >= total}
+                onClick={() => setPage(page + 1)}
+              >Siguiente</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
