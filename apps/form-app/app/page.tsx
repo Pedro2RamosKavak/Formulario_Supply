@@ -58,30 +58,34 @@ export default function Home() {
   // Calcular el progreso actual
   const progress = Math.round(((currentStep - 1) / totalSteps) * 100);
 
-  // Cargar datos guardados al iniciar
-  useEffect(() => {
-    const savedStep = localStorage.getItem('currentStep');
-    const savedFormData = localStorage.getItem('formData');
-    
-    if (savedStep) {
-      setCurrentStep(parseInt(savedStep, 10));
-    }
-    
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData);
-        setFormData(parsedData);
-      } catch (error) {
-        console.error('Error parsing saved form data:', error);
+  // Cargar datos guardados al iniciar - Desactivado para forzar reinicio limpio de formulario
+  /*
+    useEffect(() => {
+      const savedStep = localStorage.getItem('currentStep');
+      const savedFormData = localStorage.getItem('formData');
+      
+      if (savedStep) {
+        setCurrentStep(parseInt(savedStep, 10));
       }
-    }
-  }, []);
+      
+      if (savedFormData) {
+        try {
+          const parsedData = JSON.parse(savedFormData);
+          setFormData(parsedData);
+        } catch (error) {
+          console.error('Error parsing saved form data:', error);
+        }
+      }
+    }, []);
+  */
 
-  // Guardar cambios en localStorage cuando el estado cambia
-  useEffect(() => {
-    localStorage.setItem('currentStep', currentStep.toString());
-    localStorage.setItem('formData', JSON.stringify(formData));
-  }, [currentStep, formData]);
+  // Guardar cambios en localStorage cuando el estado cambia - Desactivado
+  /*
+    useEffect(() => {
+      localStorage.setItem('currentStep', currentStep.toString());
+      localStorage.setItem('formData', JSON.stringify(formData));
+    }, [currentStep, formData]);
+  */
 
   // Prevenir que el usuario salga durante el envío
   useEffect(() => {
